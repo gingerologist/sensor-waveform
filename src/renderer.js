@@ -26,14 +26,17 @@
  * ```
  */
 
-import './index.css';
+import './index.css'
 import * as React from 'react'
-import * as ReactDOM from 'react-dom'
-import { initializeIcons } from '@fluentui/react/lib/Icons';
 import { createRoot } from 'react-dom/client'
+
+import { FluentProvider, teamsLightTheme } from '@fluentui/react-components'
+
+import { initializeIcons } from '@fluentui/react/lib/Icons' // not renewed TODO
+
 import App from './App.jsx'
 
-console.log('This message is being logged by "renderer.js", included via webpack');
+// console.log('This message is being logged by "renderer.js", included via webpack')
 
 // const counter = document.getElementById('counter')
 
@@ -54,16 +57,14 @@ console.log('This message is being logged by "renderer.js", included via webpack
 
 // Also available from @uifabric/icons (7 and earlier) and @fluentui/font-icons-mdl2 (8+)
 
-
-initializeIcons("https://static2.sharepointonline.com/files/fabric/assets/icons/");
+initializeIcons('https://static2.sharepointonline.com/files/fabric/assets/icons/')
 
 // const style1 = {position: "absolute", /* width: 1200, height: 600, */ top: "50%", left: "50%", transform: "translate(-50%,-50%)" };
-const root = createRoot(document.getElementById('root'));
+const root = createRoot(document.getElementById('root'))
 // root.render(<App />)
 
 root.render(
-  <React.StrictMode>
+  <FluentProvider theme={teamsLightTheme}>
     <App />
-  </React.StrictMode>
+  </FluentProvider>
 )
-

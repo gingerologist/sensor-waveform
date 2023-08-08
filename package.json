@@ -54,6 +54,7 @@
     "@emotion/styled": "^11.11.0",
     "@fluentui/font-icons-mdl2": "^8.5.23",
     "@fluentui/react": "^8.110.8",
+    "@fluentui/react-components": "^9.27.4",
     "@mui/icons-material": "^5.14.0",
     "@mui/material": "^5.14.0",
     "deep-equal": "^2.2.2",

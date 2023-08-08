@@ -1,7 +1,9 @@
 import * as React from 'react'
 import { useState, useEffect } from 'react'
+import { makeStyles, Toolbar, ToolbarButton, ToolbarGroup } from '@fluentui/react-components'
 
-import { Pivot, PivotItem } from '@fluentui/react'
+import { PlugConnected20Regular, PlugDisconnected20Regular, FolderOpen20Regular } from '@fluentui/react-icons'
+
 import { CommandBar } from '@fluentui/react/lib/CommandBar'
 import { Label } from '@fluentui/react/lib/Label'
 import { TextField } from '@fluentui/react/lib/TextField'
@@ -217,7 +219,7 @@ const ConnectDialog = (props) => {
 
   useEffect(() => {
     if (hidden) {
-      return () => {}
+      return () => { }
     }
 
     main.send('start-polling-ports')
@@ -252,7 +254,7 @@ const ConnectDialog = (props) => {
     >
       <div style={{ height: 120 }}>
         <ChoiceGroup
-          defaultSelectedKey={ select }
+          defaultSelectedKey={select}
           options={
             ports.map(raw => ({ key: raw.path, text: raw.friendlyName ? raw.friendlyName : raw.path }))
           }
@@ -310,6 +312,14 @@ const initGenericAdcOption = {
 
 let oneTimeInit = false
 const lastHandled = null
+
+const useStyles = makeStyles({
+  toolbar: {
+    position: 'fixed',
+    top: 0, // width: '100%'
+    justifyContent: 'space-between'
+  }
+})
 
 const App = () => {
   const [connected, setConnected] = useState(null)
@@ -545,18 +555,34 @@ const App = () => {
   }
 
   return (
-    <div>    
-      <CommandBar
-        items={commandBarItems}
-        farItems={commandBarFarItems}
-      />
+    <div>
+      <Toolbar classname={useStyles().toolbar}>
+        <ToolbarGroup role='presentation'>
+          <ToolbarButton
+            icon={<PlugConnected20Regular />} disabled={connectDisabled} onClick={onConnect}
+          >
+            Connect
+          </ToolbarButton>
+          <ToolbarButton
+            icon={<PlugDisconnected20Regular/>} disabled={disconnectDisabled} onClick={() => main.send('disconnect', connected)}
+          >
+            Disconnect
+          </ToolbarButton>
+        </ToolbarGroup>
+        <ToolbarGroup role='presentation'>
+          <ToolbarButton icon={<FolderOpen20Regular />}>Open Folder</ToolbarButton>
+        </ToolbarGroup>
+      </Toolbar>
 
-      {/* <div style={{ display: 'flex', flexDirection: 'column', width: '100%', justifyContent: 'flex-start', alignItems: 'stretch', gap: 0 }}> */}
+      <div style={{ height: '100vh', overflow: 'scroll' }}>
+        <div style={{ width: '100%', height: 45 }} />
+
+        {/* <div style={{ display: 'flex', flexDirection: 'column', width: '100%', justifyContent: 'flex-start', alignItems: 'stretch', gap: 0 }}> */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginLeft: '10%', marginRight: '10%', gap: 60 }}>
-          <TextField style={{ width: 100 }} label="Heart Rate" readOnly controlled value={heartRate} suffix='BPM'/>
-          <TextField style={{ width: 100 }} label="RL Lead Off" readOnly controlled value={rldStat} suffix='%'/>
-          <TextField style={{ width: 100 }} label="LA Lead Off" readOnly controlled value={in2pOff} suffix='%'/>
-          <TextField style={{ width: 100 }} label="RA Lead Off" readOnly controlled value={in2nOff} suffix='%'/>
+          <TextField style={{ width: 100 }} label="Heart Rate" readOnly controlled value={heartRate} suffix='BPM' />
+          <TextField style={{ width: 100 }} label="RL Lead Off" readOnly controlled value={rldStat} suffix='%' />
+          <TextField style={{ width: 100 }} label="LA Lead Off" readOnly controlled value={in2pOff} suffix='%' />
+          <TextField style={{ width: 100 }} label="RA Lead Off" readOnly controlled value={in2nOff} suffix='%' />
         </div>
         <Label style={{ marginLeft: '10%' }}>Original</Label>
         <ReactECharts style={{ minWidth: 800, height: 192 }} option={ecgOrigOption} />
@@ -566,14 +592,12 @@ const App = () => {
         <ReactECharts style={{ minWidth: 800, height: 192 }} option={ecgIir1Option} />
         <Label style={{ marginLeft: '10%' }}>IIR Notch + Lowpass/Highpass Filter (on PC, Experimental)</Label>
         <ReactECharts style={{ minWidth: 800, height: 192 }} option={ecgIir2Option} />
-      {/* </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', width: '100%', justifyContent: 'flex-start', alignItems: 'stretch', gap: 0 }}> */}
         <Label style={{ marginLeft: '10%' }}>Generial ADC (Original)</Label>
         <ReactECharts style={{ minWidth: 800, height: 300 }} option={genericAdcOption} />
         <Label style={{ marginLeft: '10%' }}>50Hz Notch Filter</Label>
         <ReactECharts style={{ minWidth: 800, height: 300 }} option={genericAdcIir1Option} />
-      {/* </div> */}
+        <div style={{ height: 40 }} />
+      </div>
 
       <ConnectDialog
         hidden={!connectDialog}
