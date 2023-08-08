@@ -59,11 +59,11 @@ initializeIcons("https://static2.sharepointonline.com/files/fabric/assets/icons/
 
 // const style1 = {position: "absolute", /* width: 1200, height: 600, */ top: "50%", left: "50%", transform: "translate(-50%,-50%)" };
 const root = createRoot(document.getElementById('root'));
-root.render(<App />)
-/*
+// root.render(<App />)
+
 root.render(
   <React.StrictMode>
     <App />
   </React.StrictMode>
-);
-*/
+)
+

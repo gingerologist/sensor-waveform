@@ -36,8 +36,8 @@ const readBrief = tlv => {
   }
 
   const sensorId = tlv.value.readUInt16LE(0)
-  const instanceId = tlv.value.readUInt8(2)
-  const version = tlv.value.readUInt8(3)
+  const version = tlv.value.readUInt8(2)
+  const instanceId = tlv.value.readUInt8(3)
 
   switch (sensorId) {
     case 0x0001: {
@@ -47,7 +47,31 @@ const readBrief = tlv => {
       const numOfSamples = tlv.value.readUInt8(4)
       const heartRate = tlv.value.readUInt8(5)
       const respiratoryRate = tlv.value.readUInt8(6)
-      return { sensorId, instanceId, version, numOfSamples, heartRate, respiratoryRate }
+      return {
+        sensorId,
+        instanceId,
+        version,
+        numOfSamples,
+        heartRate,
+        respiratoryRate
+      }
+    }
+    case 0xfff0: {
+      const samplingRate = tlv.value.readUInt16LE(4)
+      const samplingRateUnit = tlv.value.readUInt8(6)
+      const resolution = tlv.value.readUInt8(7)
+      const vref = tlv.value.readUInt16LE(8)
+      const numOfSamples = tlv.value.readUInt16LE(10)
+      return {
+        sensorId,
+        version,
+        instanceId,
+        samplingRate,
+        samplingRateUnit,
+        resolution,
+        vref,
+        numOfSamples
+      }
     }
     default:
       throw new Error(`unknown sensor id ${sensorId}`)
@@ -90,8 +114,25 @@ const ads129xHandler = (data, tlv) => {
   return data
 }
 
+const genericAdcHandler = (data, tlv) => {
+  switch (tlv.type) {
+    // uint16_t
+    case 0x00:
+      data.adc = []
+      for (let i = 0; i < tlv.length / 2; i++) {
+        data.adc.push(tlv.value.readInt16LE(i * 2))
+      }
+      break
+    default:
+      break
+  }
+
+  return data
+}
+
 const handlerMap = new Map()
 handlerMap.set(0x0002, ads129xHandler)
+handlerMap.set(0xfff0, genericAdcHandler)
 
 /**
  *
@@ -100,6 +141,7 @@ handlerMap.set(0x0002, ads129xHandler)
  */
 const parseSensPacket = input => {
   const packetStart = input.indexOf(token)
+
   if (packetStart < 0) return
 
   if (packetStart > 0) input = input.subarray(packetStart)

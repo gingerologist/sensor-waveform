@@ -39,7 +39,7 @@ const adaptViewData = raw => {
     case 0x0002:
       return ads129xViewData(raw)
     default:
-      return null
+      return raw
   }
 }
 

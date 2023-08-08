@@ -53,10 +53,19 @@ const iirFilterCoeffs4 = iirCalculator.highpass({
   Fc: 1
 })
 
+// 1Hz low pass
+const iirFilterCoeffs5 = iirCalculator.lowpass({
+  order: 2,
+  characteristic: 'butterworth',
+  Fs: 250,
+  Fc: 0.5
+})
+
 const iirFilter = new Fili.IirFilter(iirFilterCoeffs)
 const iirFilter2 = new Fili.IirFilter(iirFilterCoeffs2)
 const iirFilter3 = new Fili.IirFilter(iirFilterCoeffs3)
 const iirFilter4 = new Fili.IirFilter(iirFilterCoeffs4)
+const iirFilter5 = new Fili.IirFilter(iirFilterCoeffs5)
 
 let counter = 0
 let port = null
@@ -208,6 +217,7 @@ const createWindow = () => {
     iirFilter2.reinit()
     iirFilter3.reinit()
     iirFilter4.reinit()
+    iirFilter5.reinit()
 
     port = _port
     conn = new SerialPort({ path: port.path, baudRate: 115200 })
@@ -226,11 +236,24 @@ const createWindow = () => {
           }
 
           input = input.subarray(parsed.packetEnd)
+
           const adapted = adaptViewData(parsed.data)
-          adapted.ecgIir1 = iirFilter.multiStep(adapted.ecgOrig)
-          // adapted.ecgIir2 = iirFilter2.multiStep(adapted.ecgOrig)
-          // adapted.ecgIir2 = iirFilter3.multiStep(adapted.ecgIir1)
-          adapted.ecgIir2 = iirFilter4.multiStep(iirFilter3.multiStep(adapted.ecgIir1))
+          switch (adapted.brief.sensorId)
+          {
+            case 0x0002:
+              adapted.ecgIir1 = iirFilter.multiStep(adapted.ecgOrig)
+              // adapted.ecgIir2 = iirFilter2.multiStep(adapted.ecgOrig)
+              // adapted.ecgIir2 = iirFilter3.multiStep(adapted.ecgIir1)
+              adapted.ecgIir2 = iirFilter4.multiStep(iirFilter3.multiStep(adapted.ecgIir1))
+              break
+            case 0xfff0:
+              // TODO
+              adapted.adcIir1 = iirFilter.multiStep(adapted.adc)
+              // adapted.adcIir2 = iirFilter4.multiStep(iirFilter3.multiStep(adapted.adcIir1))
+              adapted.adcIir2 = iirFilter5.multiStep(adapted.adc)
+              break
+          }
+
           mainWindow.webContents.send('data', null, adapted)
         }
       } catch (e) {
