@@ -575,9 +575,6 @@ const App = () => {
       </Toolbar>
 
       <div style={{ height: '100vh', overflow: 'scroll' }}>
-        <div style={{ width: '100%', height: 45 }} />
-
-        {/* <div style={{ display: 'flex', flexDirection: 'column', width: '100%', justifyContent: 'flex-start', alignItems: 'stretch', gap: 0 }}> */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginLeft: '10%', marginRight: '10%', gap: 60 }}>
           <TextField style={{ width: 100 }} label="Heart Rate" readOnly controlled value={heartRate} suffix='BPM' />
           <TextField style={{ width: 100 }} label="RL Lead Off" readOnly controlled value={rldStat} suffix='%' />
@@ -592,10 +589,13 @@ const App = () => {
         <ReactECharts style={{ minWidth: 800, height: 192 }} option={ecgIir1Option} />
         <Label style={{ marginLeft: '10%' }}>IIR Notch + Lowpass/Highpass Filter (on PC, Experimental)</Label>
         <ReactECharts style={{ minWidth: 800, height: 192 }} option={ecgIir2Option} />
+        
+        <div>
         <Label style={{ marginLeft: '10%' }}>Generial ADC (Original)</Label>
         <ReactECharts style={{ minWidth: 800, height: 300 }} option={genericAdcOption} />
         <Label style={{ marginLeft: '10%' }}>50Hz Notch Filter</Label>
         <ReactECharts style={{ minWidth: 800, height: 300 }} option={genericAdcIir1Option} />
+        </div>
         <div style={{ height: 40 }} />
       </div>
 
