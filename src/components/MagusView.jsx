@@ -1,21 +1,17 @@
 import * as React from 'react'
 import { useState, useEffect } from 'react'
 
-import { ipcRenderer } from 'electron'
-
-import fs from 'node:fs'
+import { Label, Input, Text, Divider, makeStyles } from '@fluentui/react-components'
 
 import ReactECharts from 'echarts-for-react'
 
-// this doesn't work
-// import { ipcRenderer } from 'electron'
-
-// this doesn't work either
-// console.log('==========')
-// console.log('MagusView', window.electronAPI)
-// console.log('==========')
+import { ipcRenderer } from 'electron'
 
 const ECG_SAMPLE_COUNT = 2000
+
+const useStyles = makeStyles({
+
+})
 
 const initEcgOption = {
   grid: {
@@ -34,7 +30,7 @@ const initEcgOption = {
   },
   yAxis: {
     type: 'value',
-    min: -1,
+    // min: -1,
     scale: true,
     animation: false
   },
@@ -57,40 +53,12 @@ const initEcgOption = {
   }]
 }
 
-/**
- *
- * @param {*} oob something like
- * ```
- * {
- *   type: 'passport',
- *   port: port (message port)
- *   ... otherdata
- * }
- * ```
- */
-const handleOob = (oob) => {
-  if (oob.type === 'passport') {
-    // ipcRenderer.postMessage('passport', null, oob)
-    // console.log(oob.ports.map(p => p.port))
-    // window.electronAPI.postMessage('passport', oob, oob.ports.map(p => p.port))
-    // ipcRenderer.postMessage('passport', oob, oob.ports.map(p => p.port))
-    const { port1, port2 } = new MessageChannel()
-    // window.postMessage({ message: 'hello' }, '*', [port1])
-    const port = oob.ports[0].port
-    // console.log(port)
-    // ipcRenderer.postMessage('passport', { port: port1 }) // oob, [oob.ports[0].port, oob.ports[1].port])
-    ipcRenderer.postMessage('passport', { hello: 'world' }, oob.ports.map(p => p.port))
-  }
-}
-
-window.onmessage = e => {
-  console.log('window.onmessage', e)
-  // e.ports[0].postMessage('hello')
-}
-
 const MagusView = (props) => {
   let worker = null
 
+  const [heartRate, setHeartRate] = useState(255)
+  const [in2pOff, setIn2pOff] = useState(100)
+  const [in2nOff, setIn2nOff] = useState(100)
   const [ecgOrig, setEcgOrig] = useState(initEcgOption)
   const [ecgProc, setEcgProc] = useState(initEcgOption)
   const [ecgNtch, setEcgNtch] = useState(initEcgOption)
@@ -100,20 +68,15 @@ const MagusView = (props) => {
   useEffect(() => {
     worker = new Worker(new URL('../workers/magus-worker.js', import.meta.url))
     worker.onmessage = e => {
-      if (e.data.oob) {
-        handleOob(e.data.oob)
-        return
-      }
+      const { brief, leadOff, ecgOrigData, ecgProcData, ecgNtchData, ecgNlhpData } = e.data
 
-      setEcgOrig({
-        xAxis: { min: e.data.ecgOrigData[0], max: e.data.ecgOrigData[0] + 2000 },
-        series: [{ data: e.data.ecgOrigData }]
-      })
-
-      setEcgProc({
-        xAxis: { min: e.data.ecgProcData[0], max: e.data.ecgProcData[0] + 2000 },
-        series: [{ data: e.data.ecgProcData }]
-      })
+      setHeartRate(brief.heartRate)
+      setIn2pOff(leadOff.in2pOff * 2)
+      setIn2nOff(leadOff.in2nOff * 2)
+      setEcgOrig({ series: [{ data: ecgOrigData }] })
+      setEcgProc({ series: [{ data: ecgProcData }] })
+      setEcgNtch({ series: [{ data: ecgNtchData }] })
+      setEcgNlhp({ series: [{ data: ecgNlhpData }] })
     }
 
     return () => {
@@ -122,12 +85,21 @@ const MagusView = (props) => {
     }
   }, [])
 
-  // console.log(ecgOrig.series[0].data[0], ecgOrig.series[0].data[1])
-
   return (
     <div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginLeft: '10%', marginRight: '10%', gap: 60 }}>
+        <Input style={{ width: 200, textAlign: 'right' }} contentBefore='HR:' value={heartRate} contentAfter='BPM' readOnly controlled />
+        <Input style={{ width: 200 }} contentBefore="LA:" value={in2pOff} contentAfter='%' readOnly controlled />
+        <Input style={{ width: 200 }} contentBefore="RA:" value={in2nOff} contentAfter='%' readOnly controlled />
+      </div>
+      <Label style={{ marginLeft: '10%' }}>Original</Label>
       <ReactECharts {...props} option={ecgOrig} />
+      <Label style={{ marginLeft: '10%' }}>MCU Processed (Zhirou Algorithm))</Label>
       <ReactECharts {...props} option={ecgProc} />
+      <Label style={{ marginLeft: '10%' }}>IIR Notch Filter (on PC, Experimental)</Label>
+      <ReactECharts {...props} option={ecgNtch} />
+      <Label style={{ marginLeft: '10%' }}>IIR Notch + Lowpass/Highpass Filter (on PC, Experimental)</Label>
+      <ReactECharts {...props} option={ecgNlhp} />
     </div>
   )
 }

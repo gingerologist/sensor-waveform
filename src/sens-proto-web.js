@@ -1,3 +1,7 @@
+/**
+ * This is the re-written version of sensor-proto
+ */
+
 const PKT_PREAMBLE_LEN = 8
 const PKT_TYPE_LEN = 2
 const PKT_LENGTH_LEN = 2

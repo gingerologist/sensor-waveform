@@ -8,8 +8,13 @@ import { parseSensPacket, concat } from '../sens-proto-web'
 import Fili from '../lib/fili.min.js'
 import adaptViewData from '../adapt-viewdata'
 
-// Uncaught ReferenceError: window is not defined
-// console.log('magus-worker', window)
+import path from 'node:path'
+import fs from 'node:fs'
+import process from 'node:process'
+import Buffer from 'node:buffer'
+
+const logDir = path.join(process.cwd(), 'log')
+fs.mkdir(logDir, err => console.log(err))
 
 const ECG_SAMPLE_COUNT = 2000
 const iirCalc = new Fili.CalcCascades()
@@ -43,27 +48,6 @@ const startAsync = async () => {
   await port.open({ baudRate: 115200 })
 
   console.log('port opened', port.getInfo())
-
-  const chanEcgOrig = new MessageChannel()
-  const chanEcgProc = new MessageChannel()
-
-  self.postMessage({
-    oob: {
-      type: 'passport',
-      ports: [
-        {
-          target: 'file',
-          folder: 'default', // optional
-          port: chanEcgOrig.port1
-        },
-        {
-          target: 'file',
-          folder: 'default',
-          port: chanEcgProc.port1
-        }
-      ]
-    }
-  }, [chanEcgOrig.port1, chanEcgProc.port1])
 
   let ecgPlotIndex = 0
   const ecgOrigArray = Array(2000).fill(0)
@@ -99,6 +83,8 @@ const startAsync = async () => {
 
           switch (adapted.brief.sensorId) {
             case 0x0002:
+              adapted.ecgNtch = ecgNotch.multiStep(adapted.ecgOrig)
+              adapted.ecgNlhp = ecgHighpass.multiStep(ecgLowpass.multiStep(adapted.ecgNtch))
               break
             default:
               break
@@ -107,27 +93,49 @@ const startAsync = async () => {
           for (let i = 0; i < adapted.brief.numOfSamples; i++) {
             ecgOrigArray[ecgPlotIndex] = adapted.ecgOrig[i]
             ecgProcArray[ecgPlotIndex] = adapted.ecgProc[i]
+            ecgNtchArray[ecgPlotIndex] = adapted.ecgNtch[i]
+            ecgNlhpArray[ecgPlotIndex] = adapted.ecgNlhp[i]
             ecgPlotIndex = (ecgPlotIndex + 1) % 2000
           }
 
           for (let j = 0; j < adapted.brief.numOfSamples * 2; j++) {
             ecgOrigArray[(ecgPlotIndex + j) % 2000] = NaN
             ecgProcArray[(ecgPlotIndex + j) % 2000] = NaN
+            ecgNtchArray[(ecgPlotIndex + j) % 2000] = NaN
+            ecgNlhpArray[(ecgPlotIndex + j) % 2000] = NaN
           }
 
           const ecgOrigData = new Float32Array(ecgOrigArray.length * 2)
           const ecgProcData = new Float32Array(ecgProcArray.length * 2)
+          const ecgNtchData = new Float32Array(ecgNtchArray.length * 2)
+          const ecgNlhpData = new Float32Array(ecgNlhpArray.length * 2)
 
           for (let i = 0; i < ecgOrigArray.length; i++) {
-            ecgOrigData[i * 2] = i // ecgPlotIndex + i
+            ecgOrigData[i * 2] = i
             ecgOrigData[i * 2 + 1] = ecgOrigArray[i]
-            ecgProcData[i * 2] = i // ecgPlotIndex + i
+            ecgProcData[i * 2] = i
             ecgProcData[i * 2 + 1] = ecgProcArray[i]
+            ecgNtchData[i * 2] = i
+            ecgNtchData[i * 2 + 1] = ecgNtchArray[i]
+            ecgNlhpData[i * 2] = i
+            ecgNlhpData[i * 2 + 1] = ecgNlhpArray[i]
           }
 
           const { brief, leadOff } = adapted
 
-          self.postMessage({ brief, leadOff, ecgOrigData, ecgProcData }, [ecgOrigData.buffer, ecgProcData.buffer])
+          self.postMessage({
+            brief,
+            leadOff,
+            ecgOrigData,
+            ecgProcData,
+            ecgNtchData,
+            ecgNlhpData
+          }, [
+            ecgOrigData.buffer,
+            ecgProcData.buffer,
+            ecgNtchData.buffer,
+            ecgNlhpData.buffer
+          ])
         }
       }
     } catch (error) {

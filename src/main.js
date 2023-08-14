@@ -1,3 +1,11 @@
+/**
+ * If you're using Webpack to bundle your Electron app and you're getting require is not defined,
+ * and you don't want to set nodeIntegration to true for security,
+ * change the target of your webpack bundle from electron-renderer to web.
+ * That way webpack won't be trying to look for things like require and module in the environment.
+ * 
+ * https://gist.github.com/msafi/d1b8571aa921feaaa0f893ab24bb727b
+ */
 const { app, BrowserWindow, ipcMain, dialog, MessageChannelMain } = require('electron')
 const path = require('path')
 // const { default: installExtension, REACT_DEVELOPER_TOOLS } = require('electron-devtools-installer');
@@ -19,9 +27,7 @@ const firFilterCoeffs = firCalculator.bandstop({
   Fc2: 55
 })
 
-// const firFilter = new Fili.FirFilter(firFilterCoeffs)
 const iirCalculator = new Fili.CalcCascades()
-// const availableFilters = iirCalculator.available()
 
 const iirFilterCoeffs = iirCalculator.bandstop({
   order: 1,
@@ -88,7 +94,6 @@ async function handleSelectDir () {
   }
 }
 
-// let pollingSerialPortTimer
 let pollingPortsTimer = null
 let pollingPortsSorts = null
 
@@ -99,10 +104,8 @@ const createWindow = () => {
     height: 800,
     webPreferences: {
       preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
-      // sandbox: false,
-      nodeIntegration: true, // required for, well, Serial port
-      // contextIsolation: false
-      // nodeIntegrationInWorker: true,
+      nodeIntegration: true,
+      nodeIntegrationInWorker: true,
       contextIsolation: false,
       sandbox: false
     }
@@ -132,19 +135,11 @@ const createWindow = () => {
     // Optionally update portList to remove the port
   })
 
-  // mainWindow.webContents.session.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
-  //   if (permission === 'serial' && details.securityOrigin === 'file:///') {
-  //     return true
-  //   }
-
-  //   return false
-  // })
-
   /**
    * This handler allows (only) navigator.serial.requestPorts() to access host serial devices
    */
   mainWindow.webContents.session.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
-    console.log('setPermissionCheckHandler', permission, details.securityOrigin)
+    // console.log('setPermissionCheckHandler', permission, details.securityOrigin)
 
     const fileOrigin = (details.securityOrigin === 'file:///')
     const localhostOrigin = (details.securityOrigin.startsWith('http://localhost:')) // for webpack dev server
@@ -322,8 +317,6 @@ const createWindow = () => {
   // and load the index.html of the app.
   mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY)
 
-  const ports = []
-
   // mainWindow.webContents.on('did-finish-load', () => {
 
   //   const myDocPath = app.getPath('documents')
@@ -376,10 +369,6 @@ app.on('window-all-closed', () => {
 //     createWindow()
 //   }
 // })
-
-ipcMain.on("passport", (e, a, b, c) => {
-  console.log('passport', e, a, b, c)
-})
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and import them here.

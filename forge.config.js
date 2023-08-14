@@ -43,6 +43,10 @@ module.exports = {
               preload: {
                 js: './src/preload.js'
               }
+            },
+            {
+              name: 'magus_worker',
+              js: './src/workers/magus-worker.js'
             }
           ]
         }
