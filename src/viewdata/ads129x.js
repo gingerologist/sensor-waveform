@@ -28,19 +28,10 @@ const ads129xViewData = ({ brief, regs, samples, ecg1, resp1 }) => {
     brief,
     leadOff,
     ecgOrig,
-    ecgProc: ecg1,
+    ecgFilt: ecg1,
     respOrig,
     respFilt: resp1.map(x => x.hp)
   }
 }
 
-const adaptViewData = raw => {
-  switch (raw.brief.sensorId) {
-    case 0x0002:
-      return ads129xViewData(raw)
-    default:
-      return raw
-  }
-}
-
-module.exports = adaptViewData
+export default ads129xViewData

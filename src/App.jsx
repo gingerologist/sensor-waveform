@@ -1,10 +1,18 @@
 import * as React from 'react'
 import { useState, useEffect } from 'react'
-import { makeStyles, Toolbar, ToolbarButton, ToolbarGroup } from '@fluentui/react-components'
+import {
+  makeStyles, Toolbar, ToolbarButton, ToolbarGroup,
+  Dialog as NewDialog,
+  DialogTrigger,
+  DialogSurface,
+  DialogTitle,
+  DialogBody,
+  DialogActions,
+  DialogContent, Button
+} from '@fluentui/react-components'
 
 import { PlugConnected20Regular, PlugDisconnected20Regular, FolderOpen20Regular } from '@fluentui/react-icons'
 
-import { CommandBar } from '@fluentui/react/lib/CommandBar'
 import { Label } from '@fluentui/react/lib/Label'
 import { TextField } from '@fluentui/react/lib/TextField'
 import { Dialog, DialogType, DialogFooter } from '@fluentui/react/lib/Dialog'
@@ -13,24 +21,27 @@ import { ChoiceGroup } from '@fluentui/react/lib/ChoiceGroup'
 
 import ReactECharts from 'echarts-for-react'
 
+// import './components/MagusView'
+import MagusView from './components/MagusView'
+
 const ECG_SAMPLE_COUNT = 2000
 const GADC_SAMPLE_COUNT = 2000
 
-const main = window.electronAPI
-let handleSerialData = null
-let handleSerialConnected = null
-let handleSerialDisconnected = null
+// const main = window.electronAPI
+// let handleSerialData = null
+// let handleSerialConnected = null
+// let handleSerialDisconnected = null
 
 const register = (event, handler) => {
   switch (event) {
     case 'data':
-      handleSerialData = handler
+      // handleSerialData = handler
       break
     case 'connected':
-      handleSerialConnected = handler
+      // handleSerialConnected = handler
       break
     case 'disconnected':
-      handleSerialDisconnected = handler
+      // handleSerialDisconnected = handler
       break
     default:
       break
@@ -39,7 +50,7 @@ const register = (event, handler) => {
 
 const unregister = event => register(event, null)
 
-main.on('data', (e, _, data) => handleSerialData && handleSerialData(data))
+// main.on('data', (e, _, data) => handleSerialData && handleSerialData(data))
 
 let ecgOrigCount = 0
 let ecgFiltCount = 0
@@ -59,33 +70,33 @@ const genericAdc = new Array(GADC_SAMPLE_COUNT).map((_, index) => [index, null])
 const genericAdcIir1 = new Array(GADC_SAMPLE_COUNT).map((_, index) => [index, null])
 const genericAdcIir2 = new Array(GADC_SAMPLE_COUNT).map((_, index) => [index, null])
 
-const initEcgOption = {
-  grid: {
-    show: true,
-    top: 8,
-    bottom: 24
-  },
-  xAxis: {
-    type: 'value',
-    min: 0,
-    max: ECG_SAMPLE_COUNT,
-    splitNumber: ECG_SAMPLE_COUNT / 25 + 1,
-    axisLabel: { show: false },
-    axisTick: { show: false },
-    animation: false
-  },
-  yAxis: {
-    type: 'value',
-    scale: true,
-    animation: false
-  },
-  series: [{
-    type: 'line',
-    lineStyle: { width: 0.5 },
-    showSymbol: false,
-    data: []
-  }]
-}
+// const initEcgOption = {
+//   grid: {
+//     show: true,
+//     top: 8,
+//     bottom: 24
+//   },
+//   xAxis: {
+//     type: 'value',
+//     min: 0,
+//     max: ECG_SAMPLE_COUNT,
+//     splitNumber: ECG_SAMPLE_COUNT / 25 + 1,
+//     axisLabel: { show: false },
+//     axisTick: { show: false },
+//     animation: false
+//   },
+//   yAxis: {
+//     type: 'value',
+//     scale: true,
+//     animation: false
+//   },
+//   series: [{
+//     type: 'line',
+//     lineStyle: { width: 0.5 },
+//     showSymbol: false,
+//     data: []
+//   }]
+// }
 
 const initEcgOrigOption = {
   grid: {
@@ -200,87 +211,87 @@ const initEcgIir2Option = {
   }]
 }
 
-const ConnectDialog = (props) => {
-  const { onDismiss, hidden } = props
+// const ConnectDialog = (props) => {
+//   // const { onDismiss, hidden } = props
 
-  /*
-   * both sets should be cleared
-   */
-  const [ports, setPorts] = useState([])
-  const [select, setSelect] = useState('')
+//   /*
+//    * both sets should be cleared
+//    */
+//   const [ports, setPorts] = useState([])
+//   const [select, setSelect] = useState('')
 
-  const portsListener = (event, err, ports) => {
-    if (err) {
-      // TODO
-    } else {
-      setPorts(ports.filter(port => port.path.startsWith('COM') || port.path.startsWith('/dev/ttyUSB') || port.path.startsWith('/dev/ttyACM')))
-    }
-  }
+//   const portsListener = (event, err, ports) => {
+//     if (err) {
+//       // TODO
+//     } else {
+//       setPorts(ports.filter(port => port.path.startsWith('COM') || port.path.startsWith('/dev/ttyUSB') || port.path.startsWith('/dev/ttyACM')))
+//     }
+//   }
 
-  useEffect(() => {
-    if (hidden) {
-      return () => { }
-    }
+//   // useEffect(() => {
+//   //   if (hidden) {
+//   //     return () => { }
+//   //   }
 
-    main.send('start-polling-ports')
-    main.on('ports', portsListener)
-    console.log('start polling ports')
+//   //   // main.send('start-polling-ports')
+//   //   // main.on('ports', portsListener)
+//   //   console.log('start polling ports')
 
-    return () => {
-      main.off('ports', portsListener)
-      main.send('stop-polling-ports')
-      console.log('stop polling ports')
-      setPorts([])
-      setSelect('')
-    }
-  }, [hidden])
+//   //   return () => {
+//   //     main.off('ports', portsListener)
+//   //     main.send('stop-polling-ports')
+//   //     console.log('stop polling ports')
+//   //     setPorts([])
+//   //     setSelect('')
+//   //   }
+//   // }, [hidden])
 
-  return (
-    <Dialog
-      hidden={hidden}
-      onDismiss={onDismiss}
-      dialogContentProps={{
-        type: DialogType.largeHeader,
-        title: 'Select a serial port'
-      }}
-      modalProps={{
-        isBlocking: true,
-        styles: {
-          main: {
-            width: 450
-          }
-        }
-      }}
-    >
-      <div style={{ height: 120 }}>
-        <ChoiceGroup
-          defaultSelectedKey={select}
-          options={
-            ports.map(raw => ({ key: raw.path, text: raw.friendlyName ? raw.friendlyName : raw.path }))
-          }
-          onChange={(event, value) => {
-            setSelect(value.key)
-          }}
-        />
-      </div>
-      <DialogFooter>
-        <PrimaryButton
-          onClick={() => {
-            const port = ports.find(port => port.path === select)
-            if (port) {
-              onDismiss(port)
-            }
-          }}
-          text="Connect"
-        />
-        <DefaultButton
-          onClick={() => onDismiss()}
-          text="Cancel"
-        />
-      </DialogFooter>
-    </Dialog>
-  )
-}
+//   return (
+//     <Dialog
+//       // hidden={hidden}
+//       onDismiss={onDismiss}
+//       dialogContentProps={{
+//         type: DialogType.largeHeader,
+//         title: 'Select a serial port'
+//       }}
+//       modalProps={{
+//         isBlocking: true,
+//         styles: {
+//           main: {
+//             width: 450
+//           }
+//         }
+//       }}
+//     >
+//       <div style={{ height: 120 }}>
+//         <ChoiceGroup
+//           defaultSelectedKey={select}
+//           options={
+//             ports.map(raw => ({ key: raw.path, text: raw.friendlyName ? raw.friendlyName : raw.path }))
+//           }
+//           onChange={(event, value) => {
+//             setSelect(value.key)
+//           }}
+//         />
+//       </div>
+//       <DialogFooter>
+//         <PrimaryButton
+//           onClick={() => {
+//             const port = ports.find(port => port.path === select)
+//             if (port) {
+//               onDismiss(port)
+//             }
+//           }}
+//           text="Connect"
+//         />
+//         <DefaultButton
+//           onClick={() => onDismiss()}
+//           text="Cancel"
+//         />
+//       </DialogFooter>
+//     </Dialog>
+//   )
+// }
 
 const initGenericAdcOption = {
   grid: {
@@ -311,7 +322,11 @@ const initGenericAdcOption = {
 }
 
 let oneTimeInit = false
-const lastHandled = null
+// const lastHandled = null
+
+navigator.serial.getPorts()
+  .then(ports => console.log(ports))
+  .catch(e => console.log(e))
 
 const useStyles = makeStyles({
   toolbar: {
@@ -323,7 +338,7 @@ const useStyles = makeStyles({
 
 const App = () => {
   const [connected, setConnected] = useState(null)
-  const [dirPath, setDirPath] = useState('')
+  // const [dirPath, setDirPath] = useState('')
   const [connectDialog, setConnectDialog] = useState(false)
 
   const [ecgOrigOption, setEcgOrigOption] = useState(initEcgOrigOption)
@@ -333,7 +348,7 @@ const App = () => {
 
   const [genericAdcOption, setGenericAdcOption] = useState(initGenericAdcOption)
   const [genericAdcIir1Option, setGenericAdcIir1Option] = useState(initGenericAdcOption)
-  const [genericAdcIir2Option, setGenericAdcIir2Option] = useState(initGenericAdcOption)
+  // const [genericAdcIir2Option, setGenericAdcIir2Option] = useState(initGenericAdcOption)
 
   const [heartRate, setHeartRate] = useState(255)
 
@@ -344,11 +359,11 @@ const App = () => {
   useEffect(() => {
     console.log('connected effect', connected)
     if (connected && connected.connected) {
-      const onDisconnected = (_, port) => {
-        console.log('onDisconnected', port)
-        const conn = { ...port, connected: false }
-        setConnected(conn)
-      }
+      // const onDisconnected = (_, port) => {
+      //   console.log('onDisconnected', port)
+      //   const conn = { ...port, connected: false }
+      //   setConnected(conn)
+      // }
 
       register('data', parsed => {
         const handleAds1292r = () => {
@@ -423,7 +438,7 @@ const App = () => {
             genericAdcIir2Count++
           })
 
-          setGenericAdcIir2Option({ series: [{ data: genericAdcIir2, bump: genericAdcIir2Count }] })
+          // setGenericAdcIir2Option({ series: [{ data: genericAdcIir2, bump: genericAdcIir2Count }] })
         }
 
         switch (parsed.brief.sensorId) {
@@ -438,7 +453,7 @@ const App = () => {
         }
       })
 
-      main.on('disconnected', onDisconnected)
+      // main.on('disconnected', onDisconnected)
 
       ecgOrigCount = 0
       ecgOrig.fill(null)
@@ -461,32 +476,33 @@ const App = () => {
       genericAdcIir2.fill(null)
       setGenericAdcOption({ series: [{ data: genericAdc, bump: genericAdcCount }] })
       setGenericAdcIir1Option({ series: [{ data: genericAdcIir1, bump: genericAdcIir1Count }] })
-      setGenericAdcIir2Option({ series: [{ data: genericAdcIir2, bump: genericAdcIir2Count }] })
+      // setGenericAdcIir2Option({ series: [{ data: genericAdcIir2, bump: genericAdcIir2Count }] })
 
       return () => {
         unregister('data', null)
-        main.off('disconnected', onDisconnected)
+        // main.off('disconnected', onDisconnected)
       }
     } else {
-      const listener = (_, port) => {
-        console.log('connected', port)
-        const conn = { ...port, connected: true }
-        setConnected(conn)
-      }
+      // const listener = (_, port) => {
+      //   console.log('connected', port)
+      //   const conn = { ...port, connected: true }
+      //   setConnected(conn)
+      // }
 
-      main.on('connected', listener)
-      return () => main.off('connected', listener)
+      // main.on('connected', listener)
+      // return () => main.off('connected', listener)
+      return () => {}
     }
   }, [connected])
 
   if (!oneTimeInit) {
     oneTimeInit = true
-    main.on('ahola', (_, opt) => {
-      console.log('ahola', opt)
-      setDirPath(opt.dirPath)
-    })
+    // main.on('ahola', (_, opt) => {
+    //   console.log('ahola', opt)
+    //   setDirPath(opt.dirPath)
+    // })
 
-    main.send('aloha')
+    // main.send('aloha')
   }
 
   const onConnect = () => {
@@ -496,64 +512,21 @@ const App = () => {
 
   const connectDisabled = connected && connected.connected
 
-  const disconnectText =
-    connected === null
-      ? 'Disconnect'
-      : connected.connected
-        ? 'Disconnect'
-        : `${connected.path} Disconnected`
+  // const disconnectText =
+  //   connected === null
+  //     ? 'Disconnect'
+  //     : connected.connected
+  //       ? 'Disconnect'
+  //       : `${connected.path} Disconnected`
 
   const disconnectDisabled = !connected || !connected.connected
-
-  const commandBarItems = [
-    {
-      key: 'connect',
-      text: 'Connect',
-      cacheKey: 'connectCacheKey',
-      iconProps: { iconName: 'PlugConnected' },
-      disabled: connectDisabled,
-      onClick: onConnect
-    },
-    {
-      key: 'disconnect',
-      text: disconnectText,
-      cacheKey: 'disconnectCacheKey',
-      iconProps: { iconName: 'PlugDisconnected' },
-      disabled: disconnectDisabled,
-      onClick: () => {
-        main.send('disconnect', connected)
-      }
-    }
-  ]
-
-  const commandBarFarItems = [
-    {
-      key: 'openDir',
-      text: 'Open Directory',
-      cacheKey: 'openDirectoryCacheKey',
-      iconProps: { iconName: 'OpenFolderHorizontal' },
-      split: true,
-      subMenuProps: {
-        items: [
-          {
-            key: 'changeDir',
-            text: 'Change  Directory',
-            cacheKey: 'changeDirCacheKey',
-            iconProps: {
-              iconName: 'FolderHorizontal'
-            }
-          }
-        ]
-      }
-    }
-  ]
 
   const onDismiss = port => {
     setConnectDialog(false)
     console.log('connecting port', port)
-    port && main.send('connect', port)
+    // port && main.send('connect', port)
   }
-
+  // onClick={() => main.send('disconnect', connected)}
   return (
     <div>
       <Toolbar classname={useStyles().toolbar}>
@@ -564,10 +537,41 @@ const App = () => {
             Connect
           </ToolbarButton>
           <ToolbarButton
-            icon={<PlugDisconnected20Regular/>} disabled={disconnectDisabled} onClick={() => main.send('disconnect', connected)}
+            icon={<PlugDisconnected20Regular/>} disabled={disconnectDisabled}
           >
             Disconnect
           </ToolbarButton>
+          <NewDialog>
+            <DialogTrigger disableButtonEnhancement>
+              <ToolbarButton icon={<PlugConnected20Regular />} disabled={connectDisabled} onClick={async () => {
+                const filters = [{ usbVendorId: 0x1915, usbProductId: 0x521a }]
+                try {
+                  const port = await navigator.serial.requestPort({ filters })
+                  const portInfo = port.getInfo()
+                  console.log(portInfo)
+                } catch (e) {
+                  console.log(e)
+                }
+              }}>Connect</ToolbarButton>
+            </DialogTrigger>
+            <DialogSurface>
+              <DialogBody>
+                <DialogTitle>Dialog title</DialogTitle>
+                <DialogContent>
+                  Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam
+                  exercitationem cumque repellendus eaque est dolor eius expedita
+                  nulla ullam? Tenetur reprehenderit aut voluptatum impedit voluptates
+                  in natus iure cumque eaque?
+                </DialogContent>
+                <DialogActions>
+                  <DialogTrigger disableButtonEnhancement>
+                    <Button appearance="secondary">Close</Button>
+                  </DialogTrigger>
+                  <Button appearance="primary">Do Something</Button>
+                </DialogActions>
+              </DialogBody>
+            </DialogSurface>
+          </NewDialog>
         </ToolbarGroup>
         <ToolbarGroup role='presentation'>
           <ToolbarButton icon={<FolderOpen20Regular />}>Open Folder</ToolbarButton>
@@ -589,20 +593,21 @@ const App = () => {
         <ReactECharts style={{ minWidth: 800, height: 192 }} option={ecgIir1Option} />
         <Label style={{ marginLeft: '10%' }}>IIR Notch + Lowpass/Highpass Filter (on PC, Experimental)</Label>
         <ReactECharts style={{ minWidth: 800, height: 192 }} option={ecgIir2Option} />
-        
         <div>
-        <Label style={{ marginLeft: '10%' }}>Generial ADC (Original)</Label>
-        <ReactECharts style={{ minWidth: 800, height: 300 }} option={genericAdcOption} />
-        <Label style={{ marginLeft: '10%' }}>50Hz Notch Filter</Label>
-        <ReactECharts style={{ minWidth: 800, height: 300 }} option={genericAdcIir1Option} />
+          <Label style={{ marginLeft: '10%' }}>Generial ADC (Original)</Label>
+          <ReactECharts style={{ minWidth: 800, height: 300 }} option={genericAdcOption} />
+          <Label style={{ marginLeft: '10%' }}>50Hz Notch Filter</Label>
+          <ReactECharts style={{ minWidth: 800, height: 300 }} option={genericAdcIir1Option} />
         </div>
+        <MagusView />
         <div style={{ height: 40 }} />
       </div>
 
-      <ConnectDialog
+      {/* <ConnectDialog
         hidden={!connectDialog}
         onDismiss={onDismiss}
-      />
+      /> */}
+
     </div>
   )
 }

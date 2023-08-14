@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, dialog } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, MessageChannelMain } = require('electron')
 const path = require('path')
 // const { default: installExtension, REACT_DEVELOPER_TOOLS } = require('electron-devtools-installer');
 
@@ -19,9 +19,9 @@ const firFilterCoeffs = firCalculator.bandstop({
   Fc2: 55
 })
 
-const firFilter = new Fili.FirFilter(firFilterCoeffs)
+// const firFilter = new Fili.FirFilter(firFilterCoeffs)
 const iirCalculator = new Fili.CalcCascades()
-const availableFilters = iirCalculator.available()
+// const availableFilters = iirCalculator.available()
 
 const iirFilterCoeffs = iirCalculator.bandstop({
   order: 1,
@@ -100,24 +100,16 @@ const createWindow = () => {
     webPreferences: {
       preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
       // sandbox: false,
-      nodeIntegration: true // required for, well, Serial port
+      nodeIntegration: true, // required for, well, Serial port
       // contextIsolation: false
+      // nodeIntegrationInWorker: true,
+      contextIsolation: false,
+      sandbox: false
     }
   })
 
   mainWindow.webContents.session.on('select-serial-port', (event, portList, webContents, callback) => {
-    console.log('select-serial-port fired', portList)
-    // Add listeners to handle ports being added or removed before the callback for `select-serial-port`
-    // is called.
-    mainWindow.webContents.session.on('serial-port-added', (event, port) => {
-      console.log('serial-port-added FIRED WITH', port)
-      // Optionally update portList to add the new port
-    })
-
-    mainWindow.webContents.session.on('serial-port-removed', (event, port) => {
-      console.log('serial-port-removed FIRED WITH', port)
-      // Optionally update portList to remove the port
-    })
+    console.log('select-serial-port', 'portList', portList)
 
     event.preventDefault()
     if (portList && portList.length > 0) {
@@ -128,20 +120,67 @@ const createWindow = () => {
     }
   })
 
+  // Add listeners to handle ports being added or removed before the callback for `select-serial-port`
+  // is called.
+  mainWindow.webContents.session.on('serial-port-added', (event, port) => {
+    console.log('serial-port-added FIRED WITH', port)
+    // Optionally update portList to add the new port
+  })
+
+  mainWindow.webContents.session.on('serial-port-removed', (event, port) => {
+    console.log('serial-port-removed FIRED WITH', port)
+    // Optionally update portList to remove the port
+  })
+
+  // mainWindow.webContents.session.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
+  //   if (permission === 'serial' && details.securityOrigin === 'file:///') {
+  //     return true
+  //   }
+
+  //   return false
+  // })
+
+  /**
+   * This handler allows (only) navigator.serial.requestPorts() to access host serial devices
+   */
   mainWindow.webContents.session.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
-    if (permission === 'serial' && details.securityOrigin === 'file:///') {
+    console.log('setPermissionCheckHandler', permission, details.securityOrigin)
+
+    const fileOrigin = (details.securityOrigin === 'file:///')
+    const localhostOrigin = (details.securityOrigin.startsWith('http://localhost:')) // for webpack dev server
+    if (permission === 'serial' && (fileOrigin || localhostOrigin)) {
       return true
     }
 
     return false
   })
 
+  /**
+   * This handler allows (only) navigator.serial.getPorts() to access host serial devices
+   */
   mainWindow.webContents.session.setDevicePermissionHandler((details) => {
-    if (details.deviceType === 'serial' && details.origin === 'file://') {
+    console.log('setDevicePermissionHandler', details.device, details.deviceType, details.origin)
+
+    const fileOrigin = (details.origin === 'file://')
+    const localhostOrigin = (details.origin.startsWith('http://localhost:'))
+    if (details.deviceType === 'serial' && (fileOrigin || localhostOrigin)) {
       return true
     }
 
     return false
+  })
+
+  mainWindow.webContents.on('ready-to-show', () => {
+    console.log('did-finish-load')
+    try {
+      const { port1, port2 } = new MessageChannelMain()
+      mainWindow.webContents.postMessage('backport', null, [port1])
+      port2.on('message', msg => {
+        console.log(msg, msg.data)
+      })
+    } catch (e) {
+      console.log(e)
+    }
   })
 
   mainWindow.setMenuBarVisibility(false)
@@ -184,7 +223,7 @@ const createWindow = () => {
           .then(ports => {
             const sorts = ports.sort((a, b) => a.path.localeCompare(b.path))
             console.log('sorts', sorts)
-            if (!pollingPortsSorts || sorts.reduce((acc, c) => (acc + c.path), '') != pollingPortsSorts.reduce((acc, c) => (acc + c.path), '')) {
+            if (!pollingPortsSorts || sorts.reduce((acc, c) => (acc + c.path), '') !== pollingPortsSorts.reduce((acc, c) => (acc + c.path), '')) {
               mainWindow.webContents.send('ports', null, ports)
               pollingPortsSorts = sorts
             }
@@ -238,8 +277,7 @@ const createWindow = () => {
           input = input.subarray(parsed.packetEnd)
 
           const adapted = adaptViewData(parsed.data)
-          switch (adapted.brief.sensorId)
-          {
+          switch (adapted.brief.sensorId) {
             case 0x0002:
               adapted.ecgIir1 = iirFilter.multiStep(adapted.ecgOrig)
               // adapted.ecgIir2 = iirFilter2.multiStep(adapted.ecgOrig)
@@ -315,6 +353,7 @@ app.whenReady().then(() => {
   //   .catch((err) => console.log(`An error occurred: `, err))
   ipcMain.handle('serial:list', async () => SerialPort.list())
   ipcMain.handle('dialog:selectDir', handleSelectDir)
+
   createWindow()
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -330,12 +369,16 @@ app.on('window-all-closed', () => {
   }
 })
 
-app.on('activate', () => {
-  // On OS X it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow()
-  }
+// app.on('activate', () => {
+//   // On OS X it's common to re-create a window in the app when the
+//   // dock icon is clicked and there are no other windows open.
+//   if (BrowserWindow.getAllWindows().length === 0) {
+//     createWindow()
+//   }
+// })
+
+ipcMain.on("passport", (e, a, b, c) => {
+  console.log('passport', e, a, b, c)
 })
 
 // In this file you can include the rest of your app's specific main process
