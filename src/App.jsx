@@ -175,16 +175,14 @@ const App = () => {
 
 //           <ToolbarButton icon={<FolderOpen20Regular />} onClick={() => shell.openExternal(path.join(process.cwd(), 'log'))}>Open Folder</ToolbarButton>
 
-//       </Toolbar> 
+//       </Toolbar>
 
 //        <div style={{ height: '100vh', overflow: 'scroll' }}>
 
-        
 //         <div style={{ height: 40 }} />
 //       </div>
 //     </div> */}
 
-//   // 
-
+//   //
 
 export default App

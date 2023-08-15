@@ -10,7 +10,7 @@ const { app, BrowserWindow, ipcMain, dialog, MessageChannelMain } = require('ele
 const path = require('path')
 // const { default: installExtension, REACT_DEVELOPER_TOOLS } = require('electron-devtools-installer');
 
-const { SerialPort } = require('serialport')
+// const { SerialPort } = require('serialport')
 // const deepEqual = require('deep-equal');
 
 const { parseSensPacket } = require('./sensor-protocol')
