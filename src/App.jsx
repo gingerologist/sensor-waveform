@@ -136,53 +136,55 @@ const App = () => {
     }
   }, [])
 
-  return (
-    <div>
-      <Toolbar classname={useStyles().toolbar}>
-
-          <NewDialog>
-            <DialogTrigger disableButtonEnhancement>
-              <ToolbarButton icon={<PlugConnected20Regular />} disabled={true} onClick={async () => {
-                const filters = [{ usbVendorId: 0x1915, usbProductId: 0x521a }]
-                try {
-                  const port = await navigator.serial.requestPort({ filters })
-                  const portInfo = port.getInfo()
-                  console.log(portInfo)
-                } catch (e) {
-                  console.log(e)
-                }
-              }}>Connect</ToolbarButton>
-            </DialogTrigger>
-            <DialogSurface>
-              <DialogBody>
-                <DialogTitle>Dialog title</DialogTitle>
-                <DialogContent>
-                  Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam
-                  exercitationem cumque repellendus eaque est dolor eius expedita
-                  nulla ullam? Tenetur reprehenderit aut voluptatum impedit voluptates
-                  in natus iure cumque eaque?
-                </DialogContent>
-                <DialogActions>
-                  <DialogTrigger disableButtonEnhancement>
-                    <Button appearance="secondary">Close</Button>
-                  </DialogTrigger>
-                  <Button appearance="primary">Do Something</Button>
-                </DialogActions>
-              </DialogBody>
-            </DialogSurface>
-          </NewDialog>
-
-          <ToolbarButton icon={<FolderOpen20Regular />} onClick={() => shell.openExternal(path.join(process.cwd(), 'log'))}>Open Folder</ToolbarButton>
-
-      </Toolbar>
-
-      <div style={{ height: '100vh', overflow: 'scroll' }}>
-
-        <MagusView />
-        <div style={{ height: 40 }} />
-      </div>
-    </div>
-  )
+  return (<MagusView />)
 }
+//          {/* <div>
+//  <Toolbar classname={useStyles().toolbar}>
+
+//           <NewDialog>
+//             <DialogTrigger disableButtonEnhancement>
+//               <ToolbarButton icon={<PlugConnected20Regular />} disabled={true} onClick={async () => {
+//                 const filters = [{ usbVendorId: 0x1915, usbProductId: 0x521a }]
+//                 try {
+//                   const port = await navigator.serial.requestPort({ filters })
+//                   const portInfo = port.getInfo()
+//                   console.log(portInfo)
+//                 } catch (e) {
+//                   console.log(e)
+//                 }
+//               }}>Connect</ToolbarButton>
+//             </DialogTrigger>
+//             <DialogSurface>
+//               <DialogBody>
+//                 <DialogTitle>Dialog title</DialogTitle>
+//                 <DialogContent>
+//                   Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam
+//                   exercitationem cumque repellendus eaque est dolor eius expedita
+//                   nulla ullam? Tenetur reprehenderit aut voluptatum impedit voluptates
+//                   in natus iure cumque eaque?
+//                 </DialogContent>
+//                 <DialogActions>
+//                   <DialogTrigger disableButtonEnhancement>
+//                     <Button appearance="secondary">Close</Button>
+//                   </DialogTrigger>
+//                   <Button appearance="primary">Do Something</Button>
+//                 </DialogActions>
+//               </DialogBody>
+//             </DialogSurface>
+//           </NewDialog>
+
+//           <ToolbarButton icon={<FolderOpen20Regular />} onClick={() => shell.openExternal(path.join(process.cwd(), 'log'))}>Open Folder</ToolbarButton>
+
+//       </Toolbar> 
+
+//        <div style={{ height: '100vh', overflow: 'scroll' }}>
+
+        
+//         <div style={{ height: 40 }} />
+//       </div>
+//     </div> */}
+
+//   // 
+
 
 export default App

@@ -12,6 +12,7 @@ import path from 'node:path'
 import fs from 'node:fs'
 import process from 'node:process'
 import Buffer from 'node:buffer'
+import timestamp from '../lib/timestamp'
 
 const logDir = path.join(process.cwd(), 'log')
 fs.mkdir(logDir, err => console.log(err))
@@ -41,6 +42,8 @@ const ecgHighpass = new Fili.IirFilter(iirCalc.highpass({
   Fc: 1
 }))
 
+let handleMessage = null
+
 const startAsync = async () => {
   const [port] = await navigator.serial.getPorts()
   if (!port) throw new Error('no available port')
@@ -49,15 +52,40 @@ const startAsync = async () => {
 
   console.log('port opened', port.getInfo())
 
+  let os = null
   let ecgPlotIndex = 0
-  const ecgOrigArray = Array(2000).fill(0)
-  const ecgProcArray = Array(2000).fill(0)
-  const ecgNtchArray = Array(2000).fill(0)
-  const ecgNlhpArray = Array(2000).fill(0)
+  const ecgOrigArray = Array(ECG_SAMPLE_COUNT).fill(0)
+  const ecgProcArray = Array(ECG_SAMPLE_COUNT).fill(0)
+  const ecgNtchArray = Array(ECG_SAMPLE_COUNT).fill(0)
+  const ecgNlhpArray = Array(ECG_SAMPLE_COUNT).fill(0)
 
   ecgNotch.reinit()
   ecgLowpass.reinit()
   ecgHighpass.reinit()
+
+  handleMessage = ({ type }) => {
+    switch (type) {
+      case 'start': {
+        if (os === null) {
+          const filename = `ecgdata-${timestamp()}.csv`
+          const filepath = path.join(process.cwd(), 'log', filename)
+          os = fs.createWriteStream(filepath)
+        }
+        self.postMessage({ oob: 'started' })
+        break
+      }
+      case 'stop': {
+        if (os) {
+          os.end()
+          os = null
+        }
+        self.postMessage({ oob: 'stopped' })
+        break
+      }
+      default:
+        break
+    }
+  }
 
   while (port.readable) {
     const reader = port.readable.getReader()
@@ -95,14 +123,19 @@ const startAsync = async () => {
             ecgProcArray[ecgPlotIndex] = adapted.ecgProc[i]
             ecgNtchArray[ecgPlotIndex] = adapted.ecgNtch[i]
             ecgNlhpArray[ecgPlotIndex] = adapted.ecgNlhp[i]
-            ecgPlotIndex = (ecgPlotIndex + 1) % 2000
+
+            if (os) {
+              os.write(`${adapted.ecgOrig[i]}, ${adapted.ecgProc[i]}, ${adapted.ecgNtch[i]}, ${adapted.ecgNlhp[i]}\r\n`)
+            }
+            
+            ecgPlotIndex = (ecgPlotIndex + 1) % ECG_SAMPLE_COUNT
           }
 
           for (let j = 0; j < adapted.brief.numOfSamples * 2; j++) {
-            ecgOrigArray[(ecgPlotIndex + j) % 2000] = NaN
-            ecgProcArray[(ecgPlotIndex + j) % 2000] = NaN
-            ecgNtchArray[(ecgPlotIndex + j) % 2000] = NaN
-            ecgNlhpArray[(ecgPlotIndex + j) % 2000] = NaN
+            ecgOrigArray[(ecgPlotIndex + j) % ECG_SAMPLE_COUNT] = NaN
+            ecgProcArray[(ecgPlotIndex + j) % ECG_SAMPLE_COUNT] = NaN
+            ecgNtchArray[(ecgPlotIndex + j) % ECG_SAMPLE_COUNT] = NaN
+            ecgNlhpArray[(ecgPlotIndex + j) % ECG_SAMPLE_COUNT] = NaN
           }
 
           const ecgOrigData = new Float32Array(ecgOrigArray.length * 2)
@@ -143,6 +176,11 @@ const startAsync = async () => {
       console.log(error)
     } finally {
       reader.releaseLock()
+      if (os) {
+        os.end()
+        os = null
+      }
+      self.postMessage({ oob: 'stopped' })
     }
   }
 }
@@ -176,7 +214,10 @@ navigator.serial.addEventListener('disconnect', (e) => {
 self.addEventListener('message', function (e) {
   console.log(e.data)
   // self.postMessage('You said: ' + e.data)
-}, false)
+  if (handleMessage) {
+    handleMessage(e.data)
+  }
+})
 
 // navigator.serial.requestPort()
 //   .then(port => {

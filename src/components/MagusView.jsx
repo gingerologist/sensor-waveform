@@ -1,11 +1,16 @@
 import * as React from 'react'
 import { useState, useEffect } from 'react'
 
-import { Label, Input, Text, Divider, makeStyles } from '@fluentui/react-components'
+import { Label, Input, Button, Text, Divider, makeStyles, Subtitle2, Toolbar, ToolbarButton, Body1Strong, ToolbarDivider } from '@fluentui/react-components'
+import { FolderOpen20Regular, AlignSpaceFitVertical20Regular, AlignSpaceEvenlyVertical20Regular } from '@fluentui/react-icons'
 
 import ReactECharts from 'echarts-for-react'
+import StopWatch from './StopWatch'
 
-import { ipcRenderer } from 'electron'
+import { ipcRenderer, shell } from 'electron'
+
+import path from 'node:path'
+import process from 'node:process'
 
 const ECG_SAMPLE_COUNT = 2000
 
@@ -54,8 +59,8 @@ const initEcgOption = {
 }
 
 const MagusView = (props) => {
-  let worker = null
-
+  const [worker, setWorker] = useState(null)
+  const [recording, setRecording] = useState(false)
   const [heartRate, setHeartRate] = useState(255)
   const [in2pOff, setIn2pOff] = useState(100)
   const [in2nOff, setIn2nOff] = useState(100)
@@ -63,11 +68,21 @@ const MagusView = (props) => {
   const [ecgProc, setEcgProc] = useState(initEcgOption)
   const [ecgNtch, setEcgNtch] = useState(initEcgOption)
   const [ecgNlhp, setEcgNlhp] = useState(initEcgOption)
+  const [chartHeight, setChartHeight] = useState(300)
 
   // run once
   useEffect(() => {
-    worker = new Worker(new URL('../workers/magus-worker.js', import.meta.url))
-    worker.onmessage = e => {
+    const w = new Worker(new URL('../workers/magus-worker.js', import.meta.url))
+    w.onmessage = e => {
+      if (e.data.oob) {
+        if (e.data.oob === 'started') {
+          setRecording(true)
+        } else if (e.data.oob === 'stopped') {
+          setRecording(false)
+        }
+        return
+      }
+
       const { brief, leadOff, ecgOrigData, ecgProcData, ecgNtchData, ecgNlhpData } = e.data
 
       setHeartRate(brief.heartRate)
@@ -78,28 +93,60 @@ const MagusView = (props) => {
       setEcgNtch({ series: [{ data: ecgNtchData }] })
       setEcgNlhp({ series: [{ data: ecgNlhpData }] })
     }
+    setWorker(w)
 
     return () => {
-      worker.terminate()
-      worker = null
+      w.terminate()
+      setWorker(null)
     }
   }, [])
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginLeft: '10%', marginRight: '10%', gap: 60 }}>
-        <Input style={{ width: 200, textAlign: 'right' }} contentBefore='HR:' value={heartRate} contentAfter='BPM' readOnly controlled />
-        <Input style={{ width: 200 }} contentBefore="LA:" value={in2pOff} contentAfter='%' readOnly controlled />
-        <Input style={{ width: 200 }} contentBefore="RA:" value={in2nOff} contentAfter='%' readOnly controlled />
+    <Toolbar size='medium' style={{ position: 'fixed', right: '11%', top: 4, border: '1px solid blue', borderRadius: '4px', backgroundColor: 'white', zIndex: 100 }}>
+    <StopWatch
+      onStart={() => {
+        worker.postMessage({ type: 'start' })
+      }}
+      onStop={() => {
+        worker.postMessage({ type: 'stop' })
+      }}
+      started = {recording}
+    >
+      {recording}
+    </StopWatch>
+    <ToolbarButton icon={<FolderOpen20Regular />} onClick={() => shell.openExternal(path.join(process.cwd(), 'log'))} />
+    <ToolbarDivider />
+    <ToolbarButton
+      disabled={chartHeight < 200}
+      icon={<AlignSpaceEvenlyVertical20Regular />}
+      onClick={() => {
+        setChartHeight(chartHeight - 30)
+      }} />
+    <ToolbarButton
+      disabled={chartHeight > 600}
+      icon={<AlignSpaceFitVertical20Regular />}
+      onClick={() => {
+        setChartHeight(chartHeight + 30)
+      }}/>
+  </Toolbar>
+    <div style={{ height: '100vh', overflow: 'scroll' }}>
+      <div style={{ height: 32}} />
+      <div style={{ display: 'flex', justifyContent: 'center', marginLeft: '10%', marginRight: '10%', gap: 30 }}>
+        <Input style={{ width: 120 }} contentBefore='HR:' value={heartRate} contentAfter='BPM' readOnly controlled />
+        <Input style={{ width: 120 }} contentBefore="LA:" value={in2pOff} contentAfter='%' readOnly controlled />
+        <Input style={{ width: 120 }} contentBefore="RA:" value={in2nOff} contentAfter='%' readOnly controlled />
       </div>
-      <Label style={{ marginLeft: '10%' }}>Original</Label>
-      <ReactECharts {...props} option={ecgOrig} />
-      <Label style={{ marginLeft: '10%' }}>MCU Processed (Zhirou Algorithm))</Label>
-      <ReactECharts {...props} option={ecgProc} />
-      <Label style={{ marginLeft: '10%' }}>IIR Notch Filter (on PC, Experimental)</Label>
-      <ReactECharts {...props} option={ecgNtch} />
-      <Label style={{ marginLeft: '10%' }}>IIR Notch + Lowpass/Highpass Filter (on PC, Experimental)</Label>
-      <ReactECharts {...props} option={ecgNlhp} />
+
+      <Body1Strong style={{ marginLeft: '10%' }}>Original</Body1Strong>
+      <ReactECharts style={{ height: chartHeight }} option={ecgOrig} />
+      <Body1Strong style={{ marginLeft: '10%' }}>MCU Processed (Zhirou Algorithm)</Body1Strong>
+      <ReactECharts style={{ height: chartHeight }} option={ecgProc} />
+      <Body1Strong style={{ marginLeft: '10%' }}>IIR Notch Filter (on PC, Experimental)</Body1Strong>
+      <ReactECharts style={{ height: chartHeight }} option={ecgNtch} />
+      <Body1Strong style={{ marginLeft: '10%' }}>IIR Notch + Lowpass/Highpass Filter (on PC, Experimental)</Body1Strong>
+      <ReactECharts style={{ height: chartHeight }} option={ecgNlhp} />
+    </div>
     </div>
   )
 }
