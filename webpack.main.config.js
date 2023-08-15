@@ -12,7 +12,7 @@ module.exports = {
     rules: require('./webpack.rules')
   },
   externals: {
-    serialport: 'serialport'
+//    serialport: 'serialport'
   }
   // externalsPresets: { node: true },
   // externals: [nodeExternals({

@@ -52,12 +52,12 @@ module.exports = {
         }
       }
     },
-    {
-      name: '@timfish/forge-externals-plugin',
-      config: {
-        externals: ['serialport'],
-        includeDeps: true
-      }
-    }
+//    {
+//      name: '@timfish/forge-externals-plugin',
+//      config: {
+//        externals: ['serialport'],
+//        includeDeps: true
+//      }
+//    }
   ]
 }
