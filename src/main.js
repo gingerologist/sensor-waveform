@@ -10,9 +10,6 @@ const { app, BrowserWindow, ipcMain, dialog, MessageChannelMain } = require('ele
 const path = require('path')
 // const { default: installExtension, REACT_DEVELOPER_TOOLS } = require('electron-devtools-installer');
 
-// const { SerialPort } = require('serialport')
-// const deepEqual = require('deep-equal');
-
 const { parseSensPacket } = require('./sensor-protocol')
 const adaptViewData = require('./adapt-viewdata')
 
@@ -202,47 +199,10 @@ const createWindow = () => {
       conn = null
       port = null
     }
-
-    const myDocPath = app.getPath('documents')
-    mainWindow.webContents.send('ahola', {
-      dirPath: path.join(myDocPath, 'sensor-waveform')
-    })
   })
 
-  ipcMain.on('start-polling-ports', () => {
-    console.log(`start-polling-ports received, ${counter++}`)
-    if (!pollingPortsTimer) {
-      const poll = () => {
-        console.log(`poll ${counter++}`)
-        SerialPort.list()
-          .then(ports => {
-            const sorts = ports.sort((a, b) => a.path.localeCompare(b.path))
-            console.log('sorts', sorts)
-            if (!pollingPortsSorts || sorts.reduce((acc, c) => (acc + c.path), '') !== pollingPortsSorts.reduce((acc, c) => (acc + c.path), '')) {
-              mainWindow.webContents.send('ports', null, ports)
-              pollingPortsSorts = sorts
-            }
-          })
-          .catch(err => {
-            // TODO
-            // mainWindow.webContents.send('ports', err, null)
-            console.log(err)
-          })
-      }
 
-      poll()
-      pollingPortsTimer = setInterval(poll, 3000)
-    }
-  })
 
-  ipcMain.on('stop-polling-ports', () => {
-    console.log('stop-polling-ports received')
-    if (pollingPortsTimer) {
-      clearInterval(pollingPortsTimer)
-      pollingPortsTimer = null
-      pollingPortsSorts = null
-    }
-  })
 
   ipcMain.on('connect', (event, _port) => {
     console.log('connect', _port)
@@ -301,17 +261,6 @@ const createWindow = () => {
       port = null
       mainWindow.webContents.send('disconnected', _port)
     })
-  })
-
-  ipcMain.on('disconnect', (event, _port) => {
-    console.log('disconnect', _port)
-    if (conn) {
-      conn.close()
-      // conn.removeAllListeners();
-      conn = null
-      // port = null
-      // mainWindow.webContents.send('disconnected', _port)
-    }
   })
 
   // and load the index.html of the app.

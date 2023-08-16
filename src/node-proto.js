@@ -1,7 +1,4 @@
-const { SerialPort } = require('serialport')
 const { inspect } = require('node:util')
-
-// const deepEqual = require('deep-equal');
 
 const { parseSensPacket } = require('./sensor-protocol')
 const adaptViewData = require('./adapt-viewdata')

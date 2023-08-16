@@ -1,3 +1,13 @@
+/**
+ * This module use node:buffer for it has a reasonable indexOf method for searching token
+ * and a bunch of read method to parse data.
+ *
+ * Uint8Array does not have an good indexOf method
+ * ASCII String does not have good way to read integer and float
+ */
+
+import { Buffer } from 'node:buffer'
+
 const PKT_PREAMBLE_LEN = 8
 const PKT_TYPE_LEN = 2
 const PKT_LENGTH_LEN = 2
@@ -11,8 +21,6 @@ const readTLV = (payload, offset) => {
     const length = payload.readInt16LE(offset + 1)
     const value = payload.subarray(offset + 3, offset + 3 + length)
     const size = length + 3
-
-    // console.log(`payload.length: ${payload.length}`, offset, type, length, value, size)
 
     return { type, length, value, size }
   } catch (e) {
@@ -37,9 +45,8 @@ const peekBrief = tlv => {
 
   const sensorId = tlv.value.readUInt16LE(0)
   const version = tlv.value.readUInt8(2)
-  const instanceId = tlv.value.readUInt8(3)
 
-  return { sensorId, version, instanceId }
+  return { sensorId, version }
 }
 
 /**
@@ -47,7 +54,7 @@ const peekBrief = tlv => {
  * @param {Buffer} input
  * @returns
  */
-export const parsePacket = input => {
+export const sensparse = input => {
   const packetStart = input.indexOf(token)
 
   if (packetStart < 0) return
@@ -74,12 +81,7 @@ export const parsePacket = input => {
 
   const payload = input.subarray(12, crcStart)
   const tlvs = readAllTLVs(payload)
-  const peek = peekBrief(tlvs[0])
-  // const handler = handlerMap.get(brief.sensorId)
+  const { sensorId, version } = peekBrief(tlvs[0])
 
-  // const data = handler
-  //   ? tlvs.reduce(handler, { brief })
-  //   : { brief }
-
-  return { packetStart, packetEnd, peek, tlvs }
+  return { packetStart, packetEnd, sensorId, version, tlvs }
 }

@@ -1,3 +1,7 @@
+/**
+ * This file is obsolete but don't remove it now.
+ */
+
 const PKT_PREAMBLE_LEN = 8
 const PKT_TYPE_LEN = 2
 const PKT_LENGTH_LEN = 2
@@ -11,8 +15,6 @@ const readTLV = (payload, offset) => {
     const length = payload.readInt16LE(offset + 1)
     const value = payload.subarray(offset + 3, offset + 3 + length)
     const size = length + 3
-
-    // console.log(`payload.length: ${payload.length}`, offset, type, length, value, size)
 
     return { type, length, value, size }
   } catch (e) {
