@@ -1,13 +1,13 @@
 import * as React from 'react'
 import { useState, useEffect } from 'react'
 
-import { Label, Input, Button, Text, Divider, makeStyles, Subtitle2, Toolbar, ToolbarButton, Body1Strong, ToolbarDivider } from '@fluentui/react-components'
+import { Input, makeStyles, Toolbar, ToolbarButton, Body1Strong, ToolbarDivider } from '@fluentui/react-components'
 import { FolderOpen20Regular, AlignSpaceFitVertical20Regular, AlignSpaceEvenlyVertical20Regular } from '@fluentui/react-icons'
 
 import ReactECharts from 'echarts-for-react'
 import StopWatch from './StopWatch'
 
-import { ipcRenderer, shell } from 'electron'
+import { shell } from 'electron'
 
 import path from 'node:path'
 import process from 'node:process'
@@ -35,7 +35,6 @@ const initEcgOption = {
   },
   yAxis: {
     type: 'value',
-    // min: -1,
     scale: true,
     animation: false
   },
@@ -75,9 +74,9 @@ const MagusView = (props) => {
     const w = new Worker(new URL('../workers/magus-worker.js', import.meta.url))
     w.onmessage = e => {
       if (e.data.oob) {
-        if (e.data.oob === 'started') {
+        if (e.data.oob === 'ads129x-recording-started') {
           setRecording(true)
-        } else if (e.data.oob === 'stopped') {
+        } else if (e.data.oob === 'ads129x-recording-stopped') {
           setRecording(false)
         }
         return
@@ -106,10 +105,10 @@ const MagusView = (props) => {
     <Toolbar size='medium' style={{ position: 'fixed', right: '11%', top: 4, border: '1px solid blue', borderRadius: '4px', backgroundColor: 'white', zIndex: 100 }}>
     <StopWatch
       onStart={() => {
-        worker.postMessage({ type: 'start' })
+        worker.postMessage({ type: 'ads129x-recording-start' })
       }}
       onStop={() => {
-        worker.postMessage({ type: 'stop' })
+        worker.postMessage({ type: 'ads129x-recording-stop' })
       }}
       started = {recording}
     >

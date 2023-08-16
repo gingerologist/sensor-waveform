@@ -19,8 +19,6 @@ import path from 'node:path'
 import process from 'node:process'
 import { shell } from 'electron'
 
-console.log(shell)
-
 const GADC_SAMPLE_COUNT = 2000
 
 let genericAdcCount = 0
