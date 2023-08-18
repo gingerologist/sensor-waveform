@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { useState, useEffect } from 'react'
 
-import { Input, makeStyles, Toolbar, ToolbarButton, Body1Strong, ToolbarDivider } from '@fluentui/react-components'
+import { Input, makeStyles, Toolbar, ToolbarButton, Body1Strong, ToolbarDivider, Divider } from '@fluentui/react-components'
 import { FolderOpen20Regular, AlignSpaceFitVertical20Regular, AlignSpaceEvenlyVertical20Regular } from '@fluentui/react-icons'
 
 import ReactECharts from 'echarts-for-react'
@@ -57,6 +57,45 @@ const initEcgOption = {
   }]
 }
 
+const initSpoOption = {
+  grid: {
+    show: true,
+    top: 8,
+    bottom: 24
+  },
+  xAxis: {
+    type: 'value',
+    min: 0,
+    max: 300,
+    splitNumber: 600 / 25 + 1,
+    axisLabel: { show: false },
+    axisTick: { show: false },
+    animation: false
+  },
+  yAxis: {
+    type: 'value',
+    scale: true,
+    animation: false
+  },
+
+  // https://jsfiddle.net/aqjxko1e/
+  // series: [{
+  //   type: 'line',
+  //   lineStyle: { width: 0.5 },
+  //   showSymbol: false,
+  //   data: []
+  // }]
+  series: [{
+    type: 'line',
+    lineStyle: { width: 0.5 },
+    showSymbol: false,
+    dimensions: ['xDim', 'yDim'],
+    encode: { x: 'xDim', y: 'yDim' },
+    data: new Uint32Array(0),
+    animation: false
+  }]
+}
+
 const MagusView = (props) => {
   const [worker, setWorker] = useState(null)
   const [recording, setRecording] = useState(false)
@@ -68,6 +107,11 @@ const MagusView = (props) => {
   const [ecgNtch, setEcgNtch] = useState(initEcgOption)
   const [ecgNlhp, setEcgNlhp] = useState(initEcgOption)
   const [chartHeight, setChartHeight] = useState(300)
+
+  const [spoIr, setSpoIr] = useState(initSpoOption)
+  const [spoRed, setSpoRed] = useState(initSpoOption)
+  const [spoIrFilt, setSpoIrFilt] = useState(initSpoOption)
+  const [spoRedFilt, setSpoRedFilt] = useState(initSpoOption)
 
   // run once
   useEffect(() => {
@@ -82,15 +126,29 @@ const MagusView = (props) => {
         return
       }
 
-      const { brief, leadOff, ecgOrigData, ecgProcData, ecgNtchData, ecgNlhpData } = e.data
+      const { brief } = e.data
 
-      setHeartRate(brief.heartRate)
-      setIn2pOff(leadOff.in2pOff * 2)
-      setIn2nOff(leadOff.in2nOff * 2)
-      setEcgOrig({ series: [{ data: ecgOrigData }] })
-      setEcgProc({ series: [{ data: ecgProcData }] })
-      setEcgNtch({ series: [{ data: ecgNtchData }] })
-      setEcgNlhp({ series: [{ data: ecgNlhpData }] })
+      if (brief.sensorId === 1) { // max86141
+        if (brief.instanceId === 0) { // spo2
+          const [ppg1led1, ppg1led2] = e.data.origs
+          const [ppg1led1Filt, ppg1led2Filt] = e.data.filts
+          setSpoIr({ series: [{ data: ppg1led1 }] })
+          setSpoRed({ series: [{ data: ppg1led2 }] })
+          setSpoIrFilt({ yAxis: { min: -900, max: 900 }, series: [{ data: ppg1led1Filt }] })
+          setSpoRedFilt({ yAxis: { min: -600, max: 600 }, series: [{ data: ppg1led2Filt }] })
+        } else if (brief.instanceId === 1) { // abp
+
+        }
+      } else if (brief.sensorId === 2) { // ads129x
+        const { leadOff, ecgOrigData, ecgProcData, ecgNtchData, ecgNlhpData } = e.data
+        setHeartRate(brief.heartRate)
+        setIn2pOff(leadOff.in2pOff * 2)
+        setIn2nOff(leadOff.in2nOff * 2)
+        setEcgOrig({ series: [{ data: ecgOrigData }] })
+        setEcgProc({ series: [{ data: ecgProcData }] })
+        setEcgNtch({ series: [{ data: ecgNtchData }] })
+        setEcgNlhp({ series: [{ data: ecgNlhpData }] })
+      }
     }
     setWorker(w)
 
@@ -130,7 +188,7 @@ const MagusView = (props) => {
       }}/>
   </Toolbar>
     <div style={{ height: '100vh', overflow: 'scroll' }}>
-      <div style={{ height: 32}} />
+      <div style={{ height: 32 }} />
       <div style={{ display: 'flex', justifyContent: 'center', marginLeft: '10%', marginRight: '10%', gap: 30 }}>
         <Input style={{ width: 120 }} contentBefore='HR:' value={heartRate} contentAfter='BPM' readOnly controlled />
         <Input style={{ width: 120 }} contentBefore="LA:" value={in2pOff} contentAfter='%' readOnly controlled />
@@ -145,6 +203,25 @@ const MagusView = (props) => {
       <ReactECharts style={{ height: chartHeight }} option={ecgNtch} />
       <Body1Strong style={{ marginLeft: '10%' }}>IIR Notch + Lowpass/Highpass Filter (on PC, Experimental)</Body1Strong>
       <ReactECharts style={{ height: chartHeight }} option={ecgNlhp} />
+
+      <Divider style={{marginTop: 48, marginBottom: 48}}/>
+
+      <div style={{ display: 'flex', marginLeft: '6%', marginRight: '6%' }}>
+        <div style={{ flexGrow: 1, flexBasis: 0 }}>
+          <center><Body1Strong>SPO2-IR, Original</Body1Strong></center>
+          <ReactECharts style={{ height: 400, width: '100%'}} option={spoIr} />
+          <center><Body1Strong>SPO2-IR, Original</Body1Strong></center>
+          <ReactECharts style={{ height: 400, width: '100%'}} option={spoIrFilt} />
+        </div>
+        <div style={{ flexGrow: 1, flexBasis: 0 }}>
+          <center><Body1Strong>SPO2-RED, Original</Body1Strong></center>
+          <ReactECharts style={{ height: 400, width: '100%' }} option={spoRed} />
+          <center><Body1Strong>SPO2-RED, Original</Body1Strong></center>
+          <ReactECharts style={{ height: 400, width: '100%' }} option={spoRedFilt} />
+        </div>
+      </div>
+
+      <div style={{ height: 64 }} />
     </div>
     </div>
   )

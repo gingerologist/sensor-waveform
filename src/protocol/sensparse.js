@@ -44,9 +44,10 @@ const peekBrief = tlv => {
   }
 
   const sensorId = tlv.value.readUInt16LE(0)
-  const version = tlv.value.readUInt8(2)
+  const instanceId = tlv.value.readUInt8(2)
+  const version = tlv.value.readUInt8(3)
 
-  return { sensorId, version }
+  return { sensorId, instanceId, version }
 }
 
 /**
@@ -81,7 +82,7 @@ export const sensparse = input => {
 
   const payload = input.subarray(12, crcStart)
   const tlvs = readAllTLVs(payload)
-  const { sensorId, version } = peekBrief(tlvs[0])
+  const { sensorId, instanceId, version } = peekBrief(tlvs[0])
 
-  return { packetStart, packetEnd, sensorId, version, tlvs }
+  return { packetStart, packetEnd, sensorId, instanceId, version, tlvs }
 }

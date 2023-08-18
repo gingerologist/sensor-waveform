@@ -1,11 +1,11 @@
 const parseBrief = tlv => {
   if (tlv.type !== 0xff) {
-    throw new Error(`not a global tlv, type: ${tlv.type}`)
+    throw new Error(`not a brief tlv, type: ${tlv.type}`)
   }
 
   const sensorId = tlv.value.readUInt16LE(0)
-  const version = tlv.value.readUInt8(2)
-  const instanceId = tlv.value.readUInt8(3)
+  const instanceId = tlv.value.readUInt8(2)
+  const version = tlv.value.readUInt8(3)
   const numOfSamples = tlv.value.readUInt8(4)
   const heartRate = tlv.value.readUInt8(5)
   const respiratoryRate = tlv.value.readUInt8(6)

@@ -14,9 +14,11 @@ import { Buffer } from 'node:buffer'
 
 import { sensparse } from '../protocol/sensparse.js'
 import { ads129xParse } from '../protocol/ads129xParse.js'
+import { max86141Parse } from '../protocol/max86141Parse.js'
 import createAds129xViewData from '../viewdata/ads129xViewData.js'
 
 import timestamp from '../lib/timestamp.js'
+import createMax86141ViewData from '../viewdata/max86141ViewData.js'
 
 // prepare log folder
 const logDir = path.join(process.cwd(), 'log')
@@ -36,6 +38,20 @@ const startAsync = async () => {
     clearAhead: 200,
     filters: [] // not respected yet TODO
   })
+
+  const spoMax86141ViewData = createMax86141ViewData({
+    samplesInChart: 300,
+    clearAhead: 60,
+    taglist: ['PPG1_LED1', 'PPG1_LED2']
+  })
+
+  const abpMax86141ViewData = null
+
+  // const abpMax86141ViewData = createMax86141ViewData({
+  //   samplesInChart: 1000,
+  //   clearAhead: 100,
+  //   filters: []
+  // })
 
   let ads129xLog = null
 
@@ -101,6 +117,17 @@ const startAsync = async () => {
               for (let i = 0; i < brief.numOfSamples; i++) {
                 ads129xLog.write(`${ecgOrig[i]}, ${ecgProc[i]}, ${ecgNtch[i]}, ${ecgNlhp[i]}\r\n`)
               }
+            }
+            break
+          }
+          case 0x0001: {
+            const parsed = max86141Parse(parted.tlvs)
+            if (parsed.brief.instanceId === 0) {
+              const { brief, origs, filts } = spoMax86141ViewData.build(parsed)
+              self.postMessage({ brief, origs, filts }, 
+                [...origs.map(x => x.buffer), ...filts.map(x => x.buffer)])
+            } else if (parsed.instanceId === 1) {
+              const { brief, ppg1Led1Orig, ppg1Led2Orig, ppg1Led3Orig, ppg2Led1Orig, ppg2Led2Orig, ppg2Led3Orig } = abpMax86141ViewData.build(parsed)
             }
             break
           }
