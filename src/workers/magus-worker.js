@@ -131,8 +131,9 @@ const startAsync = async () => {
               self.postMessage({ brief, origs, filts, acs, dcs },
                 [...origs.map(x => x.buffer), ...filts.map(x => x.buffer), ...acs.map(x => x.buffer), ...dcs.map(x => x.buffer)])
             } else if (parsed.brief.instanceId === 1) {
-              console.log(parsed)
-              const { brief, origs, filts } = abpMax86141ViewData.build(parsed)
+              const viewData = abpMax86141ViewData.build(parsed)
+              console.log(viewData)
+              const { brief, origs, filts } = viewData
               self.postMessage({ brief, origs, filts },
                 [...origs.map(x => x.buffer), ...filts.map(x => x.buffer)])
             }

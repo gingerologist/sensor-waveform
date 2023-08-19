@@ -50,24 +50,20 @@ const fromTagName = name => {
   }
 }
 
-/**
- * {
- *    name: 'PPG1_LED1',
- *    tag: 0x0001,
- *    array: [],
- *    plotIndex: 0,
- * }
- */
-class Max86141Transform {
-  constructor (name) {
+class Transform {
+  constructor (name, samplesInChart) {
     this.name = name
     this.tag = fromTagName(name)
+    this.samplesInChart = samplesInChart
+    this.reset()
+  }
+
+  reset () {
     this.orig = Array(this.samplesInChart).fill(0)
     this.filt = Array(this.samplesInChart).fill(0)
     this.ac = Array(this.samplesInChart).fill(0)
     this.dc = Array(this.samplesInChart).fill(0)
-
-    this.cursor = 0
+    this.absIndex = 0
 
     // Idoia Badiola Aguirregomezcorta*, Vladimir Blazek, Steffen Leonhardt,
     // Christoph Hoog Antink
@@ -104,6 +100,64 @@ class Max86141Transform {
       Fc: 0.67
     }))
   }
+
+  modulo (n) {
+    return n % this.samplesInChart
+  }
+
+  plotIndex () {
+    return this.absIndex % this.samplesInChart
+  }
+
+  increment () {
+    this.absIndex++
+  }
+
+  /**
+   * Write data into interal buffers. This function does not clear ahead
+   * @param {number[]} orig - raw data from packet parser, the length depends on
+   *                          samplesInPacket and how many tags are used.
+   */
+  write (orig) {
+    const filt = this.firLowpass1.multiStep(orig)
+    const ac = this.acBandpass.multiStep(filt)
+    const dc = this.dcLowpass.multiStep(filt)
+
+    for (let i = 0; i < orig.length; i++) {
+      this.orig[this.plotIndex()] = orig[i]
+      this.filt[this.plotIndex()] = filt[i]
+      this.ac[this.plotIndex()] = ac[i]
+      this.dc[this.plotIndex()] = dc[i]
+      this.increment()
+    }
+  }
+
+  toTypedArray (arr, clearAhead) {
+    if (!Number.isInteger(clearAhead) || clearAhead < 1) {
+      clearAhead = 1
+    }
+
+    const data = new Float32Array(arr.length * 2)
+    for (let i = 0; i < arr.length; i++) {
+      data[i * 2] = i
+      data[i * 2 + 1] = arr[i]
+    }
+
+    for (let i = 0; i < clearAhead; i++) {
+      data[(this.plotIndex() + i) * 2 + 1] = NaN
+    }
+
+    return data
+  }
+
+  viewData (clearAhead) {
+    return {
+      orig: this.toTypedArray(this.orig, clearAhead),
+      filt: this.toTypedArray(this.filt, clearAhead),
+      ac: this.toTypedArray(this.ac, clearAhead),
+      dc: this.toTypedArray(this.dc, clearAhead)
+    }
+  }
 }
 
 class Max86141ViewData {
@@ -111,59 +165,11 @@ class Max86141ViewData {
     this.samplesInChart = samplesInChart || 600
     this.clearAhead = clearAhead || 100
     this.filters = Array.isArray(filters) || []
-    this.offlineArray = taglist.map(name => ({
-      name,
-      tag: fromTagName(name),
-      orig: Array(this.samplesInChart).fill(NaN),
-      filt: Array(this.samplesInChart).fill(NaN),
-      ac: Array(this.samplesInChart).fill(NaN),
-      dc: Array(this.samplesInChart).fill(NaN),
-
-      plotIndex: 0,
-
-      // Idoia Badiola Aguirregomezcorta*, Vladimir Blazek, Steffen Leonhardt,
-      // Christoph Hoog Antink
-      // Learning about reflective PPG for SpO 2
-      // determination using Machine Learning
-      // First, a Butterworth low-pass filter with a cutoff frequency of 10 Hz,
-      // attenuation of 50 dB and 170 th order removes the higher
-      // frequencies from the signals
-      firLowpass1: new Fili.FirFilter(firCalc.lowpass({
-        order: 170,
-        Fs: 50,
-        Fc: 10,
-        Att: 50 // don't know whether this is used at all.
-      })),
-
-      // Because the AC part relates to
-      // the heart activity, a 4 th order Butterworth band-pass filter with
-      // cutoff frequencies 0.67 Hz to 4.5 Hz extracts the AC part of
-      // the PPG.
-      acBandpass: new Fili.IirFilter(iirCalc.bandpass({
-        order: 4,
-        characteristic: 'butterworth',
-        Fs: 50,
-        Fc: 2.585, // (0.67 + 4.5) / 2
-        BW: 3.83 // (4.5 - 0.67)
-      })),
-
-      // Finally, a 6 th order Butterworth low-pass filter
-      // isolates the DC part of the PPG signals below 0.67 Hz.
-      dcLowpass: new Fili.IirFilter(iirCalc.lowpass({
-        order: 6,
-        characteristic: 'butterworth',
-        Fs: 50,
-        Fc: 0.67
-      }))
-    }))
+    this.transforms = taglist.map(name => new Transform(name, this.samplesInChart))
   }
 
   reset () {
-    this.offlineArray.forEach(offline => {
-      offline.orig = Array(this.samplesInChart).fill(NaN)
-      offline.filt = Array(this.samplesInChart).fill(NaN)
-      offline.plotIndex = 0
-    })
+    this.transforms.forEach(trans => trans.reset())
   }
 
   modulo (n) {
@@ -172,7 +178,7 @@ class Max86141ViewData {
 
   createViewData (parsed = {}) {
     const { brief, samples } = parsed
-    const tags = this.offlineArray.map(o => o.tag)
+    const tags = this.transforms.map(o => o.tag)
     const filed = tags.map(tag => samples.filter(sample => tag === sample.tag).map(sample => sample.val))
     return { brief, samples, filed }
   }
@@ -181,31 +187,21 @@ class Max86141ViewData {
     const { filed } = viewdata
 
     const filtered = filed.map((samples, index) =>
-      this.offlineArray[index].firLowpass1.multiStep(samples))
+      this.transforms[index].firLowpass1.multiStep(samples))
 
     const ac = filtered.map((samples, index) =>
-      this.offlineArray[index].acBandpass.multiStep(samples))
+      this.transforms[index].acBandpass.multiStep(samples))
 
     const dc = filtered.map((samples, index) =>
-      this.offlineArray[index].dcLowpass.multiStep(samples))
+      this.transforms[index].dcLowpass.multiStep(samples))
 
     Object.assign(viewdata, { filtered, ac, dc })
   }
 
   fillOfflineArray (viewdata) {
-    // for (let i = 0; i < viewdata.brief.numOfSamples; i++) {
-    //   const sample = viewdata.samples[i]
-    //   const x = this.offlineArray.find(x => x.tag === sample.tag)
-    //   if (x) {
-    //     x.orig[x.plotIndex] = sample.val
-    //     x.orig[this.modulo(x.plotIndex + this.clearAhead)] = NaN
-    //     x.plotIndex = this.modulo(x.plotIndex + 1)
-    //   }
-    // }
-
     const length = viewdata.filed[0].length
 
-    this.offlineArray.forEach((o, index) => {
+    this.transforms.forEach((o, index) => {
       for (let i = 0; i < length; i++) {
         o.orig[o.plotIndex] = viewdata.filed[index][i]
         o.orig[this.modulo(o.plotIndex + this.clearAhead)] = NaN
@@ -225,7 +221,7 @@ class Max86141ViewData {
     viewdata.filts = []
     viewdata.acs = []
     viewdata.dcs = []
-    this.offlineArray.forEach(o => {
+    this.transforms.forEach(o => {
       const data = new Float32Array(this.samplesInChart * 2)
       for (let i = 0; i < this.samplesInChart; i++) {
         data[i * 2] = i
@@ -256,12 +252,28 @@ class Max86141ViewData {
     })
   }
 
+  // build (parsed) {
+  //   const viewdata = this.createViewData(parsed)
+  //   this.appendFilteredData(viewdata)
+  //   this.fillOfflineArray(viewdata)
+  //   this.appendTypedArray(viewdata)
+  //   return viewdata
+  // }
   build (parsed) {
-    const viewdata = this.createViewData(parsed)
-    this.appendFilteredData(viewdata)
-    this.fillOfflineArray(viewdata)
-    this.appendTypedArray(viewdata)
-    return viewdata
+    const { brief, samples } = parsed
+    const viewData = { brief, origs: [], filts: [], acs: [], dcs: [] }
+    this.transforms.forEach(trans => {
+      const tagged = samples
+        .filter(smpl => smpl.tag === trans.tag)
+        .map(smpl => smpl.val)
+      trans.write(tagged)
+      const { orig, filt, ac, dc } = trans.viewData(10)
+      viewData.origs.push(orig)
+      viewData.filts.push(filt)
+      viewData.acs.push(ac)
+      viewData.dcs.push(dc)
+    })
+    return viewData
   }
 }
 
