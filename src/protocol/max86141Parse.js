@@ -1,3 +1,34 @@
+const samplingRate = (ppgCfg2) => {
+  const ppgSr = ppgCfg2 >> 3
+  const smpAve = ppgCfg2 & 0x07
+
+  const srmap = [
+    [0x00, 25],
+    [0x01, 50],
+    [0x02, 84],
+    [0x03, 100],
+    [0x04, 200],
+    [0x05, 400],
+    [0x06, 25],
+    [0x07, 50],
+    [0x08, 84],
+    [0x09, 100],
+    [0x0a, 8],
+    [0x0b, 16],
+    [0x0c, 32],
+    [0x0d, 64],
+    [0x0e, 128],
+    [0x0f, 256],
+    [0x10, 512],
+    [0x11, 1024],
+    [0x12, 2048],
+    [0x13, 4096]
+  ]
+
+  const pair = srmap.find(arr => arr[0] === ppgSr)
+  return pair[1] / (1 << smpAve)
+}
+
 const parseBrief = tlv => {
   if (tlv.type !== 0xff) {
     throw new Error(`not a brief tlv, type: ${tlv.type}`)
@@ -94,7 +125,12 @@ const parseDetail = (data, tlv) => {
       break
     }
     case 0x10: {
-      data.ppgcfg = Array.from(tlv.value)
+      const raw = Array.from(tlv.value)
+      const ppgCfg = {
+        raw,
+        samplingRate: samplingRate(raw[2])  // 0x12, 
+      }
+      data.ppgcfg = ppgCfg
       break
     }
     case 0x20: {

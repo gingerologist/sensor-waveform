@@ -79,12 +79,6 @@ const initSpoOption = {
   },
 
   // https://jsfiddle.net/aqjxko1e/
-  // series: [{
-  //   type: 'line',
-  //   lineStyle: { width: 0.5 },
-  //   showSymbol: false,
-  //   data: []
-  // }]
   series: [{
     type: 'line',
     lineStyle: { width: 0.5 },
@@ -95,6 +89,8 @@ const initSpoOption = {
     animation: false
   }]
 }
+
+const chartOpt = (data) => ({ series: [{ data }] })
 
 const MagusView = (props) => {
   const [worker, setWorker] = useState(null)
@@ -112,6 +108,24 @@ const MagusView = (props) => {
   const [spoRed, setSpoRed] = useState(initSpoOption)
   const [spoIrFilt, setSpoIrFilt] = useState(initSpoOption)
   const [spoRedFilt, setSpoRedFilt] = useState(initSpoOption)
+  const [spoIrAc, setSpoIrAc] = useState(initSpoOption)
+  const [spoRedAc, setSpoRedAc] = useState(initSpoOption)
+  const [spoIrDc, setSpoIrDc] = useState(initSpoOption)
+  const [spoRedDc, setSpoRedDc] = useState(initSpoOption)
+
+  const [abpIr1, setAbpIr1] = useState(initSpoOption)
+  const [abpIr2, setAbpIr2] = useState(initSpoOption)
+  const [abpRed1, setAbpRed1] = useState(initSpoOption)
+  const [abpRed2, setAbpRed2] = useState(initSpoOption)
+  const [abpGreen1, setAbpGreen1] = useState(initSpoOption)
+  const [abpGreen2, setAbpGreen2] = useState(initSpoOption)
+
+  const [abpIr1f, setAbpIr1f] = useState(initSpoOption)
+  const [abpIr2f, setAbpIr2f] = useState(initSpoOption)
+  const [abpRed1f, setAbpRed1f] = useState(initSpoOption)
+  const [abpRed2f, setAbpRed2f] = useState(initSpoOption)
+  const [abpGreen1f, setAbpGreen1f] = useState(initSpoOption)
+  const [abpGreen2f, setAbpGreen2f] = useState(initSpoOption)
 
   // run once
   useEffect(() => {
@@ -132,12 +146,31 @@ const MagusView = (props) => {
         if (brief.instanceId === 0) { // spo2
           const [ppg1led1, ppg1led2] = e.data.origs
           const [ppg1led1Filt, ppg1led2Filt] = e.data.filts
+          const [ppg1led1Ac, ppg1led2Ac] = e.data.acs
+          const [ppg1led1Dc, ppg1led2Dc] = e.data.dcs
           setSpoIr({ series: [{ data: ppg1led1 }] })
           setSpoRed({ series: [{ data: ppg1led2 }] })
-          setSpoIrFilt({ yAxis: { min: -900, max: 900 }, series: [{ data: ppg1led1Filt }] })
-          setSpoRedFilt({ yAxis: { min: -600, max: 600 }, series: [{ data: ppg1led2Filt }] })
+          setSpoIrFilt({ series: [{ data: ppg1led1Filt }] })
+          setSpoRedFilt({ series: [{ data: ppg1led2Filt }] })
+          setSpoIrAc(chartOpt(ppg1led1Ac))
+          setSpoRedAc(chartOpt(ppg1led2Ac))
+          setSpoIrDc(chartOpt(ppg1led1Dc))
+          setSpoRedDc(chartOpt(ppg1led2Dc))
         } else if (brief.instanceId === 1) { // abp
-
+          const [ppg1led1, ppg2led1, ppg1led2, ppg2led2, ppg1led3, ppg2led3] = e.data.origs
+          const [ppg1led1f, ppg2led1f, ppg1led2f, ppg2led2f, ppg1led3f, ppg2led3f] = e.data.filts
+          setAbpIr1(chartOpt(ppg1led1))
+          setAbpIr1f(chartOpt(ppg1led1f))
+          setAbpIr2(chartOpt(ppg2led1))
+          setAbpIr2f(chartOpt(ppg2led1f))
+          setAbpRed1(chartOpt(ppg1led2))
+          setAbpRed1f(chartOpt(ppg1led2f))
+          setAbpRed2(chartOpt(ppg2led2))
+          setAbpRed2f(chartOpt(ppg2led2f))
+          setAbpGreen1(chartOpt(ppg1led3))
+          setAbpGreen1f(chartOpt(ppg1led3f))
+          setAbpGreen2(chartOpt(ppg2led3))
+          setAbpGreen2f(chartOpt(ppg2led3f))
         }
       } else if (brief.sensorId === 2) { // ads129x
         const { leadOff, ecgOrigData, ecgProcData, ecgNtchData, ecgNlhpData } = e.data
@@ -204,20 +237,72 @@ const MagusView = (props) => {
       <Body1Strong style={{ marginLeft: '10%' }}>IIR Notch + Lowpass/Highpass Filter (on PC, Experimental)</Body1Strong>
       <ReactECharts style={{ height: chartHeight }} option={ecgNlhp} />
 
-      <Divider style={{marginTop: 48, marginBottom: 48}}/>
+      <Divider style={{ marginTop: 48, marginBottom: 48 }}/>
 
       <div style={{ display: 'flex', marginLeft: '6%', marginRight: '6%' }}>
         <div style={{ flexGrow: 1, flexBasis: 0 }}>
           <center><Body1Strong>SPO2-IR, Original</Body1Strong></center>
-          <ReactECharts style={{ height: 400, width: '100%'}} option={spoIr} />
+          <ReactECharts style={{ height: 240, width: '100%' }} option={spoIr} />
           <center><Body1Strong>SPO2-IR, Original</Body1Strong></center>
-          <ReactECharts style={{ height: 400, width: '100%'}} option={spoIrFilt} />
+          <ReactECharts style={{ height: 240, width: '100%' }} option={spoIrFilt} />
+          <center><Body1Strong>SPO2-IR, Original</Body1Strong></center>
+          <ReactECharts style={{ height: 240, width: '100%' }} option={spoIrAc} />
+          <center><Body1Strong>SPO2-IR, Original</Body1Strong></center>
+          <ReactECharts style={{ height: 240, width: '100%' }} option={spoIrDc} />
         </div>
         <div style={{ flexGrow: 1, flexBasis: 0 }}>
-          <center><Body1Strong>SPO2-RED, Original</Body1Strong></center>
-          <ReactECharts style={{ height: 400, width: '100%' }} option={spoRed} />
-          <center><Body1Strong>SPO2-RED, Original</Body1Strong></center>
-          <ReactECharts style={{ height: 400, width: '100%' }} option={spoRedFilt} />
+          <center><Body1Strong>SPO2-RED, Filtered</Body1Strong></center>
+          <ReactECharts style={{ height: 240, width: '100%' }} option={spoRed} />
+          <center><Body1Strong>SPO2-RED, Filtered</Body1Strong></center>
+          <ReactECharts style={{ height: 240, width: '100%' }} option={spoRedFilt} />
+          <center><Body1Strong>SPO2-RED, Filtered</Body1Strong></center>
+          <ReactECharts style={{ height: 240, width: '100%' }} option={spoRedAc} />
+          <center><Body1Strong>SPO2-RED, Filtered</Body1Strong></center>
+          <ReactECharts style={{ height: 240, width: '100%' }} option={spoRedDc} />
+        </div>
+      </div>
+
+      <Divider style={{ marginTop: 48, marginBottom: 48 }}/>
+
+      <div style={{ display: 'flex', marginLeft: '5%', marginRight: '5%', justifyContent: 'space-around' }}>
+        <div style={{ width: '30%' }}>
+          <center><Body1Strong>PPG1-IR, Original</Body1Strong></center>
+          <ReactECharts style={{ height: 240, width: '100%' }} option={abpIr1} />
+          <center><Body1Strong>PPG1-IR, Filtered</Body1Strong></center>
+          <ReactECharts style={{ height: 240, width: '100%' }} option={abpIr1f} />
+        </div>
+        <div style={{ width: '30%' }}>
+          <center><Body1Strong>PPG1-RED, Original</Body1Strong></center>
+          <ReactECharts style={{ height: 240, width: '100%' }} option={abpRed1} />
+          <center><Body1Strong>PPG1-RED, Filtered</Body1Strong></center>
+          <ReactECharts style={{ height: 240, width: '100%' }} option={abpRed1f} />
+        </div>
+        <div style={{ width: '30%' }}>
+          <center><Body1Strong>PPG1-GREEN, Original</Body1Strong></center>
+          <ReactECharts style={{ height: 240, width: '100%' }} option={abpGreen1} />
+          <center><Body1Strong>PPG1-GREEN, Filtered</Body1Strong></center>
+          <ReactECharts style={{ height: 240, width: '100%' }} option={abpGreen1f} />
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', marginLeft: '5%', marginRight: '5%', justifyContent: 'space-around' }}>
+        <div style={{ width: '30%' }}>
+          <center><Body1Strong>PPG2-IR, Original</Body1Strong></center>
+          <ReactECharts style={{ height: 240, width: '100%' }} option={abpIr2} />
+          <center><Body1Strong>PPG2-IR, Filtered</Body1Strong></center>
+          <ReactECharts style={{ height: 240, width: '100%' }} option={abpIr2f} />
+        </div>
+        <div style={{ width: '30%' }}>
+          <center><Body1Strong>PPG2-RED, Original</Body1Strong></center>
+          <ReactECharts style={{ height: 240, width: '100%' }} option={abpRed2} />
+          <center><Body1Strong>PPG2-RED, Filtered</Body1Strong></center>
+          <ReactECharts style={{ height: 240, width: '100%' }} option={abpRed2f} />
+        </div>
+        <div style={{ width: '30%' }}>
+          <center><Body1Strong>PPG2-GREEN, Original</Body1Strong></center>
+          <ReactECharts style={{ height: 240, width: '100%' }} option={abpGreen2} />
+          <center><Body1Strong>PPG2-GREEN, Filtered</Body1Strong></center>
+          <ReactECharts style={{ height: 240, width: '100%' }} option={abpGreen2f} />
         </div>
       </div>
 

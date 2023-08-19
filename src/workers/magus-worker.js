@@ -41,11 +41,15 @@ const startAsync = async () => {
 
   const spoMax86141ViewData = createMax86141ViewData({
     samplesInChart: 300,
-    clearAhead: 60,
+    clearAhead: 30,
     taglist: ['PPG1_LED1', 'PPG1_LED2']
   })
 
-  const abpMax86141ViewData = null
+  const abpMax86141ViewData = createMax86141ViewData({
+    samplesInChart: 300,
+    clearAhead: 30,
+    taglist: ['PPG1_LED1', 'PPG2_LED1', 'PPG1_LED2', 'PPG2_LED2', 'PPG1_LED3', 'PPG2_LED3']
+  })
 
   // const abpMax86141ViewData = createMax86141ViewData({
   //   samplesInChart: 1000,
@@ -123,11 +127,14 @@ const startAsync = async () => {
           case 0x0001: {
             const parsed = max86141Parse(parted.tlvs)
             if (parsed.brief.instanceId === 0) {
-              const { brief, origs, filts } = spoMax86141ViewData.build(parsed)
-              self.postMessage({ brief, origs, filts }, 
+              const { brief, origs, filts, acs, dcs } = spoMax86141ViewData.build(parsed)
+              self.postMessage({ brief, origs, filts, acs, dcs },
+                [...origs.map(x => x.buffer), ...filts.map(x => x.buffer), ...acs.map(x => x.buffer), ...dcs.map(x => x.buffer)])
+            } else if (parsed.brief.instanceId === 1) {
+              console.log(parsed)
+              const { brief, origs, filts } = abpMax86141ViewData.build(parsed)
+              self.postMessage({ brief, origs, filts },
                 [...origs.map(x => x.buffer), ...filts.map(x => x.buffer)])
-            } else if (parsed.instanceId === 1) {
-              const { brief, ppg1Led1Orig, ppg1Led2Orig, ppg1Led3Orig, ppg2Led1Orig, ppg2Led2Orig, ppg2Led3Orig } = abpMax86141ViewData.build(parsed)
             }
             break
           }
@@ -144,7 +151,7 @@ const startAsync = async () => {
         ads129xLog.end()
         ads129xLog = null
       }
-      self.postMessage({ oob: 'stopped' })
+      self.postMessage({ oob: 'stopped' }) // TODO
     }
   }
 }
