@@ -58,26 +58,97 @@ const startAsync = async () => {
   // })
 
   let ads129xLog = null
+  let max86141SpoLog = null
+  let max86141AbpLog = null
+
+  const makeHeadline = arr => arr.map(s => `"${s}"`).join(', ') + '\r\n'
+
+  const ads129xHeadline = makeHeadline([
+    'original data',
+    'processed by Zhirou algorithem',
+    '50Hz notch',
+    '50Hz notch, LPF, and HPF'
+  ])
+
+  const max86141SpoHeadline = makeHeadline(['IR', 'RED'])
+
+  const max86141AbpHeadline = makeHeadline(['PPG1-IR', 'PPG2-IR', 'PPG1-RED', 'PPG2-RED', 'PPG1-GREEN', 'PPG2-GREEN'])
+
+  const startAds129xLogging = () => {
+    if (ads129xLog === null) {
+      const filename = `ecgdata-${timestamp()}.csv`
+      const filepath = path.join(process.cwd(), 'log', filename)
+      ads129xLog = fs.createWriteStream(filepath)
+      ads129xLog.write(ads129xHeadline)
+    }
+    self.postMessage({ oob: 'ads129x-recording-started' })
+  }
+
+  const stopAds129xLogging = () => {
+    if (ads129xLog) {
+      ads129xLog.end()
+      ads129xLog = null
+    }
+    self.postMessage({ oob: 'ads129x-recording-stopped' })
+  }
+
+  const startMax86141SpoLogging = () => {
+    if (max86141SpoLog === null) {
+      const filename = `spodata-${timestamp()}.csv`
+      const filepath = path.join(process.cwd(), 'log', filename)
+      max86141SpoLog = fs.createWriteStream(filepath)
+      max86141SpoLog.write(max86141SpoHeadline)
+    }
+    self.postMessage({ oob: 'max86141-spo-recording-started' })
+  }
+
+  const stopMax86141SpoLogging = () => {
+    if (max86141SpoLog) {
+      max86141SpoLog.end()
+      max86141SpoLog = null
+    }
+    self.postMessage({ oob: 'max86141-spo-recording-stopped' })
+  }
+
+  const startMax86141AbpLogging = () => {
+    if (max86141AbpLog === null) {
+      const filename = `abpdata-${timestamp()}.csv`
+      const filepath = path.join(process.cwd(), 'log', filename)
+      max86141AbpLog = fs.createWriteStream(filepath)
+      max86141AbpLog.write(max86141AbpHeadline)
+    }
+    self.postMessage({ oob: 'max86141-abp-recording-started' })
+  }
+
+  const stopMax86141AbpLogging = () => {
+    if (max86141AbpLog) {
+      max86141AbpLog.end()
+      max86141AbpLog = null
+    }
+    self.postMessage({ oob: 'max86141-abp-recording-stopped' })
+  }
 
   handleMessage = ({ type }) => {
+    console.log(`magus worker handle message: ${type}`)
     switch (type) {
-      case 'ads129x-recording-start': {
-        if (ads129xLog === null) {
-          const filename = `ecgdata-${timestamp()}.csv`
-          const filepath = path.join(process.cwd(), 'log', filename)
-          ads129xLog = fs.createWriteStream(filepath)
-        }
-        self.postMessage({ oob: 'ads129x-recording-started' })
+      case 'ads129x-recording-start':
+        startAds129xLogging()
         break
-      }
-      case 'ads129x-recording-stop': {
-        if (ads129xLog) {
-          ads129xLog.end()
-          ads129xLog = null
-        }
-        self.postMessage({ oob: 'ads129x-recording-stopped' })
+      case 'ads129x-recording-stop':
+        stopAds129xLogging()
         break
-      }
+      case 'max86141-spo-recording-start':
+        startMax86141SpoLogging()
+        break
+      case 'max86141-spo-recording-stop':
+        stopMax86141SpoLogging()
+        break
+      case 'max86141-abp-recording-start':
+        startMax86141AbpLogging()
+        break
+      case 'max86141-abp-recording-stop':
+        stopMax86141AbpLogging()
+        break
       default:
         break
     }
@@ -127,15 +198,33 @@ const startAsync = async () => {
           case 0x0001: {
             const parsed = max86141Parse(parted.tlvs)
             if (parsed.brief.instanceId === 0) {
-              const { brief, origs, filts, acs, dcs } = spoMax86141ViewData.build(parsed)
+              const { brief, filed, origs, filts, acs, dcs, ratio } = spoMax86141ViewData.build(parsed)
+              const r = ratio[1] / ratio[0]
+              const a = -16.666666
+              const b = 8.333333
+              const c = 100
+              // console.log(a * r * r + b * r + c)
               self.postMessage({ brief, origs, filts, acs, dcs },
                 [...origs.map(x => x.buffer), ...filts.map(x => x.buffer), ...acs.map(x => x.buffer), ...dcs.map(x => x.buffer)])
+
+              if (max86141SpoLog) {
+                // console.log('spo filed', filed[0][0], filed[1][0])
+                for (let i = 0; i < filed[0].length; i++) {
+                  max86141SpoLog.write(`${filed[0][i]}, ${filed[1][i]}\r\n`)
+                }
+              }
             } else if (parsed.brief.instanceId === 1) {
               const viewData = abpMax86141ViewData.build(parsed)
-              console.log(viewData)
-              const { brief, origs, filts } = viewData
+
+              const { brief, filed, origs, filts } = viewData
               self.postMessage({ brief, origs, filts },
                 [...origs.map(x => x.buffer), ...filts.map(x => x.buffer)])
+
+              if (max86141AbpLog) {
+                for (let i = 0; i < filed[0].length; i++) {
+                  max86141AbpLog.write(`${filed[0][i]}, ${filed[1][i]}, ${filed[2][i]}, ${filed[3][i]}, ${filed[4][i]}, ${filed[5][i]}\r\n`)
+                }
+              }
             }
             break
           }
@@ -148,10 +237,11 @@ const startAsync = async () => {
       console.log(error)
     } finally {
       reader.releaseLock()
-      if (ads129xLog) {
-        ads129xLog.end()
-        ads129xLog = null
-      }
+
+      stopAds129xLogging()
+      stopMax86141SpoLogging()
+      stopMax86141AbpLogging()
+
       self.postMessage({ oob: 'stopped' }) // TODO
     }
   }
@@ -184,7 +274,7 @@ navigator.serial.addEventListener('disconnect', (e) => {
 })
 
 self.addEventListener('message', function (e) {
-  console.log(e.data)
+  console.log(e.data.type ? e.data.type : e.data)
   // self.postMessage('You said: ' + e.data)
   if (handleMessage) {
     handleMessage(e.data)

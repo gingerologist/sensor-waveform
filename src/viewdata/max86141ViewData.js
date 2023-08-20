@@ -150,12 +150,31 @@ class Transform {
     return data
   }
 
+  acRms () {
+    const sum = this.ac
+      .map(x => x * x)
+      .reduce((sum, x) => sum + x, 0)
+    const avg = sum / this.ac.length
+    const rms = Math.sqrt(avg)
+    return rms
+  }
+
+  dcAvg () {
+    return this.dc.reduce((sum, x) => sum + x, 0) / this.dc.length
+  }
+
   viewData (clearAhead) {
+    const acRms = this.acRms()
+    const dcAvg = this.dcAvg()
+    const ratio = acRms / dcAvg
     return {
       orig: this.toTypedArray(this.orig, clearAhead),
       filt: this.toTypedArray(this.filt, clearAhead),
       ac: this.toTypedArray(this.ac, clearAhead),
-      dc: this.toTypedArray(this.dc, clearAhead)
+      dc: this.toTypedArray(this.dc, clearAhead),
+      acRms,
+      dcAvg,
+      ratio
     }
   }
 }
@@ -261,17 +280,21 @@ class Max86141ViewData {
   // }
   build (parsed) {
     const { brief, samples } = parsed
-    const viewData = { brief, origs: [], filts: [], acs: [], dcs: [] }
+    const viewData = { brief, filed: [], origs: [], filts: [], acs: [], dcs: [], acRms: [], dcAvg: [], ratio: [] }
     this.transforms.forEach(trans => {
-      const tagged = samples
+      const filed = samples
         .filter(smpl => smpl.tag === trans.tag)
         .map(smpl => smpl.val)
-      trans.write(tagged)
-      const { orig, filt, ac, dc } = trans.viewData(10)
+      viewData.filed.push(filed)
+      trans.write(filed)
+      const { orig, filt, ac, dc, acRms, dcAvg, ratio } = trans.viewData(10)
       viewData.origs.push(orig)
       viewData.filts.push(filt)
       viewData.acs.push(ac)
       viewData.dcs.push(dc)
+      viewData.acRms.push(acRms)
+      viewData.dcAvg.push(dcAvg)
+      viewData.ratio.push(ratio)
     })
     return viewData
   }

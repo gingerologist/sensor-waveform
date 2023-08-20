@@ -3,8 +3,9 @@
  */
 import * as React from 'react'
 import { useState, useEffect } from 'react'
-import { Button, Label, Spinner, ToolbarButton } from '@fluentui/react-components'
-import { ArrowReset24Regular } from '@fluentui/react-icons'
+import { Button, Divider, Label, Spinner, ToggleButton, ToolbarButton } from '@fluentui/react-components'
+import { ArrowReset24Regular, Record24Regular, Record20Regular, RecordStop24Regular, RecordStop20Regular, FolderOpen24Regular } from '@fluentui/react-icons'
+import { tokens } from '@fluentui/react-theme'
 
 const displayTime = total => {
   const sec = (total % 60)
@@ -18,7 +19,10 @@ const StopWatch = ({ onStart, onStop, started }) => {
   const [counting, setCounting] = useState(false)
   const [elapsed, setElapsed] = useState(0)
 
-  if ((started === true && counting === false) || (started === false && counting === true && elapsed > 0)) {
+  // if the other side does not respond, then started remains false (started is xxxRecording in MagusView)
+  // and the second clause after one second (elapsed remains 0 in the very first second)
+  if ((started === true && counting === false) ||
+      (started === false && counting === true && elapsed > 0)) {
     setCounting(started)
   }
 
@@ -33,10 +37,11 @@ const StopWatch = ({ onStart, onStop, started }) => {
   }, [counting, elapsed])
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center' }}>
-      <ToolbarButton
-        style={{ width: 160 }}
-        appearance='primary'
+    <>
+      <Button
+        size='medium'
+        style={{ width: 176 }}
+        appearance={counting ? 'primary' : 'subtle'}
         onClick={() => {
           if (counting) {
             setCounting(false)
@@ -46,25 +51,82 @@ const StopWatch = ({ onStart, onStop, started }) => {
             setCounting(true)
             onStart()
           }
-        }}>
-        {counting ? 'STOP RECORDING' : 'START RECORDING'}
-      </ToolbarButton>
+        }}
+        icon={counting ? <RecordStop20Regular /> : <Record20Regular />}
+      >
+        { counting ? 'STOP RECORDING' : 'START RECORDING' }
+      </Button>
 
-      <div style={{ display: 'flex', marginLeft: 16, width: 80, height: 32, alignItems: 'center', justifyContent: 'center' }}>
-        <Label><code>{displayTime(elapsed)}</code></Label>
+      <div style={{
+        width: 120,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        font: tokens.fontFamilyMonospace,
+        fontSize: tokens.fontSizeBase400,
+        color: counting
+          ? tokens.colorBrandForeground1
+          : elapsed
+            ? 'black'
+            : tokens.colorNeutralForegroundDisabled
+      }}>
+        {displayTime(elapsed)}
       </div>
 
-      <div style={{ display: 'flex', width: 32, height: 32, alignItems: 'center', justifyContent: 'center', marginLeft: 8, marginRight: 8 }}>
-      { counting
-        ? <Spinner size='tiny'/>
-        : <ToolbarButton shape='circular' disabled={counting || !elapsed} onClick={() => setElapsed(0)} icon={<ArrowReset24Regular />} />
-      }
+      <ToolbarButton disabled={counting || !elapsed} onClick={() => setElapsed(0)} icon={<ArrowReset24Regular />} />
 
-        {/* <ToolbarButton disabled={counting || !elapsed} onClick={() => setElapsed(0)} icon={<ArrowReset24Regular />} /> */}
-      </div>
-
-    </div>
+    </>
   )
+
+  // return (
+  //   <div style={{ display: 'flex', flexDirection: 'column', border: '1px solid lightgray', borderRadius: 4 }}>
+  //     <div style={{ display: 'flex', height: 48, alignItems: 'center', justifyContent: 'center' }}>
+  //       RECORD TO FILE
+  //     </div>
+
+  //     <Divider />
+
+  //     <div style={{ display: 'flex', alignItems: 'center', height: 48, justifyContent: 'space-around' }}>
+  //       <div style={{
+  //         flex: 1,
+  //         display: 'flex',
+  //         alignItems: 'center',
+  //         justifyContent: 'center',
+  //         font: tokens.fontFamilyMonospace,
+  //         fontSize: tokens.fontSizeBase400,
+  //         color: counting ? tokens.colorBrandForeground1 : tokens.colorNeutralForegroundDisabled,
+  //         onClick: () => !counting && setElapsed(0)
+  //       }}>
+  //         {displayTime(elapsed)}
+  //       </div>
+
+  //       {/* counting
+  //         ? <Spinner size='tiny'/>
+  //         : <ToolbarButton shape='circular' disabled={counting || !elapsed} onClick={() => setElapsed(0)} icon={<ArrowReset24Regular />} />
+  //       */}
+  //       <ToolbarButton
+  //         onClick={() => {
+  //           if (counting) {
+  //             setCounting(false)
+  //             onStop()
+  //           } else {
+  //             setElapsed(0)
+  //             setCounting(true)
+  //             onStart()
+  //           }
+  //         }}
+  //         icon={counting ? <RecordStop24Regular /> : <Record24Regular />}
+  //         appearance='transparent' />
+  //       <ToolbarButton
+  //         onClick={() => {
+  //           onOpenFolder && onOpenFolder()
+  //         }}
+  //         icon={<FolderOpen24Regular /> }
+  //         appearance='transparent' />
+
+  //     </div>
+  //   </div>
+  // )
 }
 
 export default StopWatch
