@@ -54,11 +54,11 @@ class Transform {
   constructor (name, samplesInChart) {
     this.name = name
     this.tag = fromTagName(name)
-    this.samplesInChart = samplesInChart
-    this.reset()
+    this.reset(samplesInChart)
   }
 
-  reset () {
+  reset (samplesInChart) {
+    this.samplesInChart = samplesInChart
     this.orig = Array(this.samplesInChart).fill(0)
     this.filt = Array(this.samplesInChart).fill(0)
     this.ac = Array(this.samplesInChart).fill(0)
@@ -187,8 +187,9 @@ class Max86141ViewData {
     this.transforms = taglist.map(name => new Transform(name, this.samplesInChart))
   }
 
-  reset () {
-    this.transforms.forEach(trans => trans.reset())
+  reset (samplesInChart) {
+    this.samplesInChart = samplesInChart
+    this.transforms.forEach(trans => trans.reset(samplesInChart))
   }
 
   modulo (n) {

@@ -19,6 +19,7 @@ import createAds129xViewData from '../viewdata/ads129xViewData.js'
 
 import timestamp from '../lib/timestamp.js'
 import createMax86141ViewData from '../viewdata/max86141ViewData.js'
+import createMax86141Config from '../protocol/max86141Config.js'
 
 // prepare log folder
 const logDir = path.join(process.cwd(), 'log')
@@ -46,10 +47,12 @@ const startAsync = async () => {
   })
 
   const abpMax86141ViewData = createMax86141ViewData({
-    samplesInChart: 300,
+    samplesInChart: 1000,
     clearAhead: 30,
     taglist: ['PPG1_LED1', 'PPG2_LED1', 'PPG1_LED2', 'PPG2_LED2', 'PPG1_LED3', 'PPG2_LED3']
   })
+
+  // const abpMax86141Config = createMax86141Config()
 
   // const abpMax86141ViewData = createMax86141ViewData({
   //   samplesInChart: 1000,
@@ -128,7 +131,8 @@ const startAsync = async () => {
     self.postMessage({ oob: 'max86141-abp-recording-stopped' })
   }
 
-  handleMessage = ({ type }) => {
+  handleMessage = (message) => {
+    const { type } = message
     console.log(`magus worker handle message: ${type}`)
     switch (type) {
       case 'ads129x-recording-start':
@@ -148,6 +152,10 @@ const startAsync = async () => {
         break
       case 'max86141-abp-recording-stop':
         stopMax86141AbpLogging()
+        break
+      case 'max86141-abp-samples-in-chart':
+        // console.log('max86141-abp-samples-in-chart', message.samplesInChart)
+        abpMax86141ViewData.reset(message.samplesInChart)
         break
       default:
         break
@@ -198,11 +206,11 @@ const startAsync = async () => {
           case 0x0001: {
             const parsed = max86141Parse(parted.tlvs)
             if (parsed.brief.instanceId === 0) {
-              const { brief, filed, origs, filts, acs, dcs, ratio } = spoMax86141ViewData.build(parsed)
-              const r = ratio[1] / ratio[0]
-              const a = -16.666666
-              const b = 8.333333
-              const c = 100
+              const { brief, filed, origs, filts, acs, dcs /* , ratio */ } = spoMax86141ViewData.build(parsed)
+              // const r = ratio[1] / ratio[0]
+              // const a = -16.666666
+              // const b = 8.333333
+              // const c = 100
               // console.log(a * r * r + b * r + c)
               self.postMessage({ brief, origs, filts, acs, dcs },
                 [...origs.map(x => x.buffer), ...filts.map(x => x.buffer), ...acs.map(x => x.buffer), ...dcs.map(x => x.buffer)])
@@ -214,6 +222,7 @@ const startAsync = async () => {
                 }
               }
             } else if (parsed.brief.instanceId === 1) {
+              console.log(parsed)
               const viewData = abpMax86141ViewData.build(parsed)
 
               const { brief, filed, origs, filts } = viewData

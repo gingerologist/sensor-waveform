@@ -15,7 +15,7 @@ const displayTime = total => {
   return String(hour).padStart(2, '0') + ':' + String(min).padStart(2, '0') + ':' + String(sec).padStart(2, '0')
 }
 
-const StopWatch = ({ onStart, onStop, started }) => {
+const StopWatch = ({ onStart, onStop, started, disabled }) => {
   const [counting, setCounting] = useState(false)
   const [elapsed, setElapsed] = useState(0)
 
@@ -38,10 +38,12 @@ const StopWatch = ({ onStart, onStop, started }) => {
 
   return (
     <>
-      <Button
+      <ToggleButton
         size='medium'
-        style={{ width: 176 }}
-        appearance={counting ? 'primary' : 'subtle'}
+        style={{ width: 96 }}
+        // appearance={counting ? 'primary' : 'subtle'}
+        appearance='transparent'
+        checked={counting}
         onClick={() => {
           if (counting) {
             setCounting(false)
@@ -53,17 +55,20 @@ const StopWatch = ({ onStart, onStop, started }) => {
           }
         }}
         icon={counting ? <RecordStop20Regular /> : <Record20Regular />}
+        disabled={disabled}
       >
-        { counting ? 'STOP RECORDING' : 'START RECORDING' }
-      </Button>
+        {/* counting ? 'STOP RECORDING' : 'START RECORDING' */}
+        RECORD
+      </ToggleButton>
 
       <div style={{
-        width: 120,
+        width: 96,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        font: tokens.fontFamilyMonospace,
-        fontSize: tokens.fontSizeBase400,
+        fontFamily: tokens.fontFamilyMonospace,
+        fontSize: tokens.fontSizeBase300,
+        fontWeight: tokens.fontWeightSemibold,
         color: counting
           ? tokens.colorBrandForeground1
           : elapsed
@@ -73,7 +78,7 @@ const StopWatch = ({ onStart, onStop, started }) => {
         {displayTime(elapsed)}
       </div>
 
-      <ToolbarButton disabled={counting || !elapsed} onClick={() => setElapsed(0)} icon={<ArrowReset24Regular />} />
+      <ToolbarButton disabled={disabled || counting || !elapsed} onClick={() => setElapsed(0)} icon={<ArrowReset24Regular />} />
 
     </>
   )

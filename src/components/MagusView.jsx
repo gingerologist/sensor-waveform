@@ -1,16 +1,26 @@
 import * as React from 'react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 import {
-  Input, makeStyles, Toolbar, ToolbarButton, Caption1, ToolbarDivider, Divider, shorthands,
-  Tab, TabList, SelectTabData, SelectTabEvent, TabValue
+  Button, Input, makeStyles, Toolbar, ToolbarButton, Caption1, Body1, ToolbarDivider, Divider, shorthands,
+  Tab, TabList, SelectTabData, SelectTabEvent, TabValue, Popover, Dropdown, Option, Select,
+  PopoverTrigger,
+  PopoverSurface,
+  Label, Menu, MenuTrigger, MenuList, MenuItem, MenuPopover, Text,
+  Accordion, AccordionHeader, AccordionPanel, AccordionItem, ToggleButton, RadioGroup, Radio
 } from '@fluentui/react-components'
-import { FolderOpen24Regular, AlignSpaceFitVertical20Regular, AlignSpaceEvenlyVertical20Regular } from '@fluentui/react-icons'
+import {
+  FolderOpen24Regular, AlignSpaceFitVertical20Regular, AlignSpaceEvenlyVertical20Regular,
+  ArrowSort24Regular, ArrowSortUp24Regular, ArrowSortDown24Regular, ZoomIn24Regular, ZoomOut24Regular, Edit24Regular, Edit24Filled
+} from '@fluentui/react-icons'
 import { tokens } from '@fluentui/react-theme'
 
 import ReactECharts from 'echarts-for-react'
 import StopWatch from './StopWatch'
 import EcgDisplay from './EcgDisplay'
+
+import { Transition, CSSTransition } from 'react-transition-group'
+import AnimateHeight from 'react-animate-height'
 
 import { shell } from 'electron'
 
@@ -39,6 +49,8 @@ const DISPLAY_COLUMN_WIDTH = DISPLAY_MARGIN_LEFT + DISPLAY_WIDTH + DISPLAY_MARGI
 const CHART_MIN_HEIGHT = 150
 const CHART_STEP_HEIGHT = 30
 const CHART_MAX_HEIGHT = 720
+
+const ABP_DEFAULT_SAMPLES_IN_CHART = 1000
 
 const ecgOptBase = {
   grid: {
@@ -100,7 +112,7 @@ const initSpoOption = {
     splitNumber: 600 / 25 + 1,
     axisLabel: { show: false },
     axisTick: { show: false },
-    axisLine: { show: false },    
+    axisLine: { show: false },
     animation: false
   },
   yAxis: {
@@ -108,7 +120,46 @@ const initSpoOption = {
     scale: true,
     // axisLabel: { show: false },
     axisTick: { show: false },
-    axisLine: { show: false },    
+    axisLine: { show: false },
+    animation: false
+  },
+
+  // https://jsfiddle.net/aqjxko1e/
+  series: [{
+    type: 'line',
+    lineStyle: { width: 0.5 },
+    showSymbol: false,
+    dimensions: ['xDim', 'yDim'],
+    encode: { x: 'xDim', y: 'yDim' },
+    data: new Uint32Array(0),
+    animation: false
+  }]
+}
+
+const initAbpOption = {
+  grid: {
+    show: true,
+    top: 8,
+    bottom: 16,
+    left: GRID_LEFT,
+    right: GRID_RIGHT
+  },
+  xAxis: {
+    type: 'value',
+    min: 0,
+    max: ABP_DEFAULT_SAMPLES_IN_CHART,
+    splitNumber: ABP_DEFAULT_SAMPLES_IN_CHART / 50 + 1,
+    axisLabel: { show: false },
+    axisTick: { show: false },
+    axisLine: { show: false },
+    animation: false
+  },
+  yAxis: {
+    type: 'value',
+    scale: true,
+    // axisLabel: { show: false },
+    axisTick: { show: false },
+    axisLine: { show: false },
     animation: false
   },
 
@@ -129,8 +180,108 @@ const chartOpt = (data) => ({ series: [{ data }] })
 const Spacer24 = () => (<div style={{ height: 24 }}></div>)
 const Spacer96 = () => (<div style={{ height: 96 }}></div>)
 
+const max86141ConfigStyles = makeStyles({
+  listbox: {
+    maxHeight: '200px'
+  }
+})
+
+const Max86141ConfigPanel = config => {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'left', margin: 16 }}>
+      <Divider>Photo Diode</Divider>
+      {/* ppg selection */}
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        <RadioGroup layout='horizontal' value='dual' disabled>
+          <Radio value='single' label='Single PPG' />
+          <Radio value='dual' label='Dual PPG' />
+        </RadioGroup>
+      </div>
+
+      {/* integration time, adc range */}
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        <Label>Integration Time: </Label>
+        <Dropdown listbox={{ className: max86141ConfigStyles.listbox }}>
+          { [0, 1, 2, 3].map(opt => (
+            <Option key={'tint-key-' + opt}>
+              {['14.8μS', '29.4μS', '58.7μS', '117.3μS'][opt]}
+            </Option>
+          ))}
+        </Dropdown>
+        <Label>PPG1 ADC Range:</Label>
+        <Dropdown listbox={{ className: max86141ConfigStyles.listbox }}>
+          { [0, 1, 2, 3].map(opt => (
+            <Option key={'ppg1-adc-key-' + opt}>
+              {[
+                '7.8125pA - full scale  4096nA',
+                '15.625pA - full scale  8192nA',
+                '31.250pA - full scale 16384nA',
+                '62.500pA - full scale 32768nA'][opt]}
+            </Option>
+          ))}
+        </Dropdown>
+        <Label>PPG2 ADC Range:</Label>
+        <Dropdown listbox={{ className: max86141ConfigStyles.listbox }}>
+          { [0, 1, 2, 3].map(opt => (
+            <Option key={'ppg2-adc-key-' + opt}>
+              {[
+                '7.8125pA - full scale  4096nA',
+                '15.625pA - full scale  8192nA',
+                '31.250pA - full scale 16384nA',
+                '62.500pA - full scale 32768nA'][opt]}
+            </Option>
+          ))}
+        </Dropdown>
+      </div>
+
+      {/* integration time, adc range */}
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        <Label>Sampling Rate: </Label>
+        <Dropdown listbox={{ className: max86141ConfigStyles.listbox }}>
+          { [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13].map(opt => (
+            <Option key={'sampling-rate-key-' + opt}>
+              {[
+                '25Hz', '50Hz', '84Hz', '100Hz', '200Hz', '400Hz', '25Hz (2 pulses per sample)',
+                '50Hz (2 pulses per sample)', '84Hz (2 pulses per sample)', '100Hz (2 pulses per sample)',
+                '8Hz', '16Hz', '32Hz', '64Hz', '128Hz', '256Hz', '512Hz', '1024Hz', '2048Hz', '4096Hz'
+              ][opt]}
+
+            </Option>
+          ))}
+        </Dropdown>
+        <Label>Sample Averaging:</Label>
+        <Dropdown listbox={{ className: max86141ConfigStyles.listbox }}>
+          { [0, 1, 2, 3, 4, 5, 6, 7].map(opt => (
+            <Option key={'tint-key-' + opt}>
+              {['1 (no averageing)', '2', '4', '8', '16', '32', '64', '128'][opt]}
+            </Option>
+          ))}
+        </Dropdown>
+        <Label>PPG2 ADC Range:</Label>
+        <Dropdown>
+          { [0, 1, 2, 3].map(opt => (
+            <Option key={'tint-key-' + opt}>
+              {[
+                '7.8125pA - full scale  4096nA',
+                '15.625pA - full scale  8192nA',
+                '31.250pA - full scale 16384nA',
+                '62.500pA - full scale 32768nA'][opt]}
+            </Option>
+          ))}
+        </Dropdown>
+      </div>
+
+      {/* */}
+
+    </div>
+  )
+}
+
 const MagusView = (props) => {
   const [worker, setWorker] = useState(null)
+
+  // const abpConfigPanelRef = useRef(null)
+  const [abpConfigPanelHeight, setAbpConfigPanelHeight] = useState(0)
 
   const [selectedTab, setSelectedTab] = useState('ECG')
 
@@ -150,6 +301,8 @@ const MagusView = (props) => {
   const [spoChartHeight, setSpoChartHeight] = useState(300)
   const [abpChartHeight, setAbpChartHeight] = useState(300)
 
+  const [abpSamplesInChart, setAbpSamplesInChart] = useState(ABP_DEFAULT_SAMPLES_IN_CHART)
+
   const [spoIr, setSpoIr] = useState(initSpoOption)
   const [spoRed, setSpoRed] = useState(initSpoOption)
   const [spoIrFilt, setSpoIrFilt] = useState(initSpoOption)
@@ -159,20 +312,72 @@ const MagusView = (props) => {
   const [spoIrDc, setSpoIrDc] = useState(initSpoOption)
   const [spoRedDc, setSpoRedDc] = useState(initSpoOption)
 
-  const [abpIr1, setAbpIr1] = useState(initSpoOption)
-  const [abpIr2, setAbpIr2] = useState(initSpoOption)
-  const [abpRed1, setAbpRed1] = useState(initSpoOption)
-  const [abpRed2, setAbpRed2] = useState(initSpoOption)
-  const [abpGreen1, setAbpGreen1] = useState(initSpoOption)
-  const [abpGreen2, setAbpGreen2] = useState(initSpoOption)
+  const [abpIr1, setAbpIr1] = useState(initAbpOption)
+  const [abpIr2, setAbpIr2] = useState(initAbpOption)
+  const [abpRed1, setAbpRed1] = useState(initAbpOption)
+  const [abpRed2, setAbpRed2] = useState(initAbpOption)
+  const [abpGreen1, setAbpGreen1] = useState(initAbpOption)
+  const [abpGreen2, setAbpGreen2] = useState(initAbpOption)
 
-  const [abpIr1f, setAbpIr1f] = useState(initSpoOption)
-  const [abpIr2f, setAbpIr2f] = useState(initSpoOption)
-  const [abpRed1f, setAbpRed1f] = useState(initSpoOption)
-  const [abpRed2f, setAbpRed2f] = useState(initSpoOption)
-  const [abpGreen1f, setAbpGreen1f] = useState(initSpoOption)
-  const [abpGreen2f, setAbpGreen2f] = useState(initSpoOption)
+  const [abpIr1f, setAbpIr1f] = useState(initAbpOption)
+  const [abpIr2f, setAbpIr2f] = useState(initAbpOption)
+  const [abpRed1f, setAbpRed1f] = useState(initAbpOption)
+  const [abpRed2f, setAbpRed2f] = useState(initAbpOption)
+  const [abpGreen1f, setAbpGreen1f] = useState(initAbpOption)
+  const [abpGreen2f, setAbpGreen2f] = useState(initAbpOption)
 
+  const [abpConfiguring, setAbpConfiguring] = useState(false)
+
+  const [abpOrder, setApbOrder] = useState([
+    'PPG1-IR, Original',
+    'PPG2-IR, Original',
+    'PPG1-RED, Original',
+    'PPG2-RED, Original',
+    'PPG1-GREEN, Original',
+    'PPG2-GREEN, Original'
+  ])
+
+  const abpReorder = (up, index) => {
+    if (up) {
+      setApbOrder([
+        ...abpOrder.slice(0, index - 1),
+        abpOrder[index],
+        abpOrder[index - 1],
+        ...abpOrder.slice(index + 1)
+      ])
+    } else {
+      setApbOrder([
+        ...abpOrder.slice(0, index),
+        abpOrder[index + 1],
+        abpOrder[index],
+        ...abpOrder.slice(index + 2)
+      ])
+    }
+  }
+
+  const abpZoom = zoomIn => {
+    const newSamplesInChart = zoomIn ? abpSamplesInChart / 2 : abpSamplesInChart * 2
+    const opt = {
+      xAxis: {
+        max: newSamplesInChart,
+        splitNumber: newSamplesInChart / 50 + 1
+      },
+      series: [{
+        data: new Uint32Array(0)
+      }]
+    }
+
+    setAbpIr1(opt)
+    setAbpIr2(opt)
+    setAbpRed1(opt)
+    setAbpRed2(opt)
+    setAbpGreen1(opt)
+    setAbpGreen2(opt)
+
+    setAbpSamplesInChart(newSamplesInChart)
+
+    worker.postMessage({ type: 'max86141-abp-samples-in-chart', samplesInChart: newSamplesInChart })
+  }
   // run once
   useEffect(() => {
     const w = new Worker(new URL('../workers/magus-worker.js', import.meta.url))
@@ -267,7 +472,6 @@ const MagusView = (props) => {
       </div>
 
       <div style={{ flex: 1, minWidth: 0, height: '100vh', overflowY: 'scroll', overflowX: 'hidden' }}>
-
         <h1 style={{ marginLeft: GRID_LEFT, marginTop: 48 }}>ECG</h1>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginRight: DISPLAY_COLUMN_WIDTH }}>
           <Toolbar style={{ backgroundColor: tokens.colorNeutralBackground3, borderRadius: 8 }}>
@@ -349,8 +553,9 @@ const MagusView = (props) => {
         </div>
         <Spacer24 />
         <div style={{ display: 'flex' }}>
-          <div style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'space-around' }}>
-            <div style={{ width: '50%' }}>
+          {/* <div style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'space-around' }}> */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {/* <div style={{ width: '50%' }}> */}
               <Caption1 style={{ marginLeft: GRID_LEFT }}>IR - Original</Caption1>
               <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={spoIr} />
               {/*
@@ -360,8 +565,8 @@ const MagusView = (props) => {
               <ReactECharts style={{ height: 210, width: '100%' }} option={spoIrAc} />
               <Caption1 style={{ marginLeft: 96 }}>IR, 6th Order Butterworth IIR Lowpass, cutoff freq 0.67Hz (DC)</Caption1>
               <ReactECharts style={{ height: 210, width: '100%' }} option={spoIrDc} /> */}
-            </div>
-            <div style={{ width: '50%' }}>
+            {/* </div> */}
+            {/* <div style={{ width: '50%' }}> */}
               <Caption1 style={{ marginLeft: GRID_LEFT }}>RED - Original</Caption1>
               <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={spoRed} />
               {/*
@@ -371,7 +576,7 @@ const MagusView = (props) => {
               <ReactECharts style={{ height: 210, width: '100%' }} option={spoRedAc} />
               <Caption1 style={{ marginLeft: 96 }}>IR, 6th Order Butterworth IIR Lowpass, cutoff freq 0.67Hz (DC)</Caption1>
             <ReactECharts style={{ height: 210, width: '100%' }} option={spoRedDc} /> */}
-            </div>
+            {/* </div> */}
           </div>
           <div style={{ width: DISPLAY_COLUMN_WIDTH }} />
         </div>
@@ -389,10 +594,36 @@ const MagusView = (props) => {
                 worker.postMessage({ type: 'max86141-abp-recording-stop' })
               }}
               started={abpRecording}
+              disabled={abpConfiguring}
             >
               {abpRecording}
             </StopWatch>
             <ToolbarButton onClick={() => shell.openExternal(path.join(process.cwd(), 'log'))} icon={<FolderOpen24Regular />} />
+            <ToolbarDivider />
+            <Popover withArrow>
+              <PopoverTrigger disableButtonEnhancement>
+                <ToolbarButton icon={<ArrowSort24Regular />} >
+                  ORDER
+                </ToolbarButton>
+              </PopoverTrigger>
+              <PopoverSurface>
+                {
+                  abpOrder.map((name, index, arr) => {
+                    return (
+                      <div key={name} style={{ display: 'flex', alignItems: 'center' }}>
+                        <Body1 style={{ flex: 1, minWidth: 0, marginTop: 8, marginBottom: 8, marginRight: 32 }}>{name}</Body1>
+                        <Button icon={<ArrowSortUp24Regular />} disabled={index === 0} appearance="subtle" onClick={() => abpReorder(true, index)}/>
+                        <Button icon={<ArrowSortDown24Regular />} disabled={index === arr.length - 1} appearance="subtle" onClick={() => abpReorder(false, index)}/>
+                      </div>
+                    )
+                  })
+                }
+              </PopoverSurface>
+            </Popover>
+            <ToolbarDivider />
+            <ToolbarButton icon={<ZoomIn24Regular />} onClick={() => abpZoom(true)} disabled={abpSamplesInChart <= 250} />
+            <Text style={{ width: 48 }} align='center'>{abpSamplesInChart}</Text>
+            <ToolbarButton icon={<ZoomOut24Regular />} onClick={() => abpZoom(false)} disabled={abpSamplesInChart >= 16000} />
             <ToolbarDivider />
             <ToolbarButton
                 disabled={abpChartHeight <= CHART_MIN_HEIGHT}
@@ -406,66 +637,103 @@ const MagusView = (props) => {
                 onClick={() => {
                   setAbpChartHeight(abpChartHeight + CHART_STEP_HEIGHT)
                 }} />
+            <ToolbarDivider />
+            <ToggleButton
+              checked={abpConfiguring}
+              appearance='transparent'
+              icon={abpConfiguring ? <Edit24Filled /> : <Edit24Regular />}
+              onClick={() => {
+                setAbpConfiguring(!abpConfiguring)
+                setAbpConfigPanelHeight(!abpConfiguring ? 500 : 0)
+              }}
+              // disabled={abpRecording}
+              disabled={true}
+            >
+              CONFIGURE
+            </ToggleButton>
           </Toolbar>
         </div>
+
+        <AnimateHeight
+          duration={250}
+          height={abpConfigPanelHeight}
+          style={{
+            marginTop: 8,
+            marginLeft: GRID_LEFT,
+            marginRight: DISPLAY_COLUMN_WIDTH,
+            backgroundColor: tokens.colorNeutralBackground4,
+            borderRadius: tokens.borderRadiusMedium,
+            display: 'flex',
+            flexDirection: 'column'
+          }}
+        >
+          <Max86141ConfigPanel />
+        </AnimateHeight>
+
         <Spacer24 />
+
         <div style={{ display: 'flex' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex' }}>
-              <div style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
-                <Caption1 style={{ marginLeft: GRID_LEFT }}>PPG1-IR, Original</Caption1>
-                <ReactECharts style={{ height: abpChartHeight, width: '100%' }} option={abpIr1} />
-                {/**
-              <center><Caption1>PPG1-IR, Filtered</Caption1></center>
-              <ReactECharts style={{ height: 240, width: '100%' }} option={abpIr1f} />  */}
-              </div>
-
-              <div style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
-                <Caption1 style={{ marginLeft: GRID_LEFT }}>PPG2-IR, Original</Caption1>
-                <ReactECharts style={{ height: abpChartHeight, width: '100%' }} option={abpIr2} />
-                {/**
-              <center><Caption1>PPG2-IR, Filtered</Caption1></center>
-              <ReactECharts style={{ height: 240, width: '100%' }} option={abpIr2f} />  */}
-              </div>
+            {/*
+            <div style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
+              <Caption1 style={{ marginLeft: GRID_LEFT }}>PPG1-IR, Original</Caption1>
+              <ReactECharts style={{ height: abpChartHeight, width: '100%' }} option={abpIr1} />
             </div>
-
-            <div style={{ display: 'flex' }}>
-              <div style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
-                <Caption1 style={{ marginLeft: GRID_LEFT }}>PPG1-RED, Original</Caption1>
-                <ReactECharts style={{ height: abpChartHeight, width: '100%' }} option={abpRed1} />
-                {/**
-              <center><Caption1>PPG1-RED, Filtered</Caption1></center>
-              <ReactECharts style={{ height: 240, width: '100%' }} option={abpRed1f} />  */}
-              </div>
-
-              <div style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
-                <Caption1 style={{ marginLeft: GRID_LEFT }}>PPG2-RED, Original</Caption1>
-                <ReactECharts style={{ height: abpChartHeight, width: '100%' }} option={abpRed2} />
-                {/**
-              <center><Caption1>PPG2-RED, Filtered</Caption1></center>
-              <ReactECharts style={{ height: 240, width: '100%' }} option={abpRed2f} />  */}
-              </div>
-
+            <div style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
+              <Caption1 style={{ marginLeft: GRID_LEFT }}>PPG2-IR, Original</Caption1>
+              <ReactECharts style={{ height: abpChartHeight, width: '100%' }} option={abpIr2} />
             </div>
-
-            <div style={{ display: 'flex' }}>
-              <div style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
-                <Caption1 style={{ marginLeft: GRID_LEFT }}>PPG1-GREEN, Original</Caption1>
-                <ReactECharts style={{ height: abpChartHeight, width: '100%' }} option={abpGreen1} />
-                {/**
-              <center><Caption1>PPG1-GREEN, Filtered</Caption1></center>
-              <ReactECharts style={{ height: 240, width: '100%' }} option={abpGreen1f} />  */}
-              </div>
-              <div style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
-                <Caption1 style={{ marginLeft: GRID_LEFT }}>PPG2-GREEN, Original</Caption1>
-                <ReactECharts style={{ height: abpChartHeight, width: '100%' }} option={abpGreen2} />
-                {/**
-              <center><Caption1>PPG2-GREEN, Filtered</Caption1></center>
-              <ReactECharts style={{ height: 240, width: '100%' }} option={abpGreen2f} />  */}
-              </div>
+            <div style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
+              <Caption1 style={{ marginLeft: GRID_LEFT }}>PPG1-RED, Original</Caption1>
+              <ReactECharts style={{ height: abpChartHeight, width: '100%' }} option={abpRed1} />
             </div>
+            <div style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
+              <Caption1 style={{ marginLeft: GRID_LEFT }}>PPG2-RED, Original</Caption1>
+              <ReactECharts style={{ height: abpChartHeight, width: '100%' }} option={abpRed2} />
+            </div>
+            <div style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
+              <Caption1 style={{ marginLeft: GRID_LEFT }}>PPG1-GREEN, Original</Caption1>
+              <ReactECharts style={{ height: abpChartHeight, width: '100%' }} option={abpGreen1} />
+            </div>
+            <div style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
+              <Caption1 style={{ marginLeft: GRID_LEFT }}>PPG2-GREEN, Original</Caption1>
+              <ReactECharts style={{ height: abpChartHeight, width: '100%' }} option={abpGreen2} />
+              </div> */}
+
+            {
+              abpOrder.map(name => {
+                let option
+                switch (name) {
+                  case 'PPG1-IR, Original':
+                    option = abpIr1
+                    break
+                  case 'PPG2-IR, Original':
+                    option = abpIr2
+                    break
+                  case 'PPG1-RED, Original':
+                    option = abpRed1
+                    break
+                  case 'PPG2-RED, Original':
+                    option = abpRed2
+                    break
+                  case 'PPG1-GREEN, Original':
+                    option = abpGreen1
+                    break
+                  case 'PPG2-GREEN, Original':
+                    option = abpGreen2
+                    break
+                  default:
+                    break
+                }
+                return (
+                  <div key={name} style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
+                    <Caption1 style={{ marginLeft: GRID_LEFT }}>{name}</Caption1>
+                    <ReactECharts style={{ height: abpChartHeight, width: '100%' }} option={option} />
+                  </div>
+                )
+              })
+            }
           </div>
-
           <div style={{ width: DISPLAY_COLUMN_WIDTH }} />
         </div>
 

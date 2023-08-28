@@ -126,15 +126,58 @@ const parseDetail = (data, tlv) => {
     }
     case 0x10: {
       const raw = Array.from(tlv.value)
-      const ppgCfg = {
-        raw,
-        samplingRate: samplingRate(raw[2])  // 0x12, 
+      if (!data.regs) {
+        data.regs = {}
       }
-      data.ppgcfg = ppgCfg
+
+      data.regs.ppgSyncCtrl = {
+        timeStampEn: (raw[0] & 0x80) ? 1 : 0,
+        swForceSync: (raw[0] & 0x10) ? 1 : 0,
+        gpioCtrl: raw[0] & 0x0f
+      }
+      data.regs.ppgCfg = {
+        alcDisable: (raw[1] & 0x80) ? 1 : 0,
+        addOffset: (raw[1] & 0x40) ? 1 : 0,
+        ppg2AdcRge: ((raw[1] >> 4) & 0x03),
+        ppg1AdcRge: ((raw[1] >> 2) & 0x03),
+        ppgTint: raw[1] & 0x03,
+        ppgSr: (raw[2] >> 3) & 0x1f,
+        smpAve: raw[2] & 0x07,
+        samplingRate: samplingRate(raw[2]), // calc
+        ledSetlng: (raw[3] >> 6) & 0x03,
+        digFiltSel: (raw[3] & 0x20) ? 1 : 0,
+        burstRate: (raw[3] >> 1) & 0x03,
+        burstEn: raw[3] & 0x01
+      }
+      data.regs.proxIntThresh = raw[4]
+      data.regs.pdbias = [raw[5] & 0x07, (raw[5] >> 4) & 0x07]
+      data.regs.picketFence = {
+        pfEnable: (raw[6] & 0x80) ? 1 : 0,
+        pfOrder: (raw[6] & 0x40) ? 1 : 0,
+        iirTc: (raw[6] >> 4) & 0x03,
+        iirInitValue: (raw[6] >> 2) & 0x03,
+        thresholdSigmaMult: raw[6] & 0x03
+      }
       break
     }
     case 0x20: {
-      data.ledcfg = Array.from(tlv.value)
+      const raw = Array.from(tlv.value)
+      if (!data.regs) {
+        data.regs = {}
+      }
+
+      data.regs.ledSeqCtrl = [raw[0] & 0x0f, (raw[0] >> 4) & 0x0f, raw[1] & 0x0f, (raw[1] >> 4) & 0x0f, raw[2] & 0x0f, (raw[2] >> 4) & 0x0f]
+      data.regs.ledPa = [raw[3], raw[4], raw[5], raw[6], raw[7], raw[8]]
+      data.regs.pilotPa = raw[9]
+      data.regs.ledRge = [
+        (raw[10] >> 0) & 0x03,
+        (raw[10] >> 2) & 0x03,
+        (raw[10] >> 4) & 0x03,
+        (raw[11] >> 0) & 0x03,
+        (raw[11] >> 2) & 0x03,
+        (raw[11] >> 4) & 0x03
+      ]
+
       break
     }
     default:
