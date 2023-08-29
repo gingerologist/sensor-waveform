@@ -7,7 +7,16 @@ import {
   PopoverTrigger,
   PopoverSurface,
   Label, Menu, MenuTrigger, MenuList, MenuItem, MenuPopover, Text,
-  Accordion, AccordionHeader, AccordionPanel, AccordionItem, ToggleButton, RadioGroup, Radio
+  Accordion, AccordionHeader, AccordionPanel, AccordionItem, ToggleButton, RadioGroup, Radio,
+  TableBody,
+  TableCell,
+  TableRow,
+  Table,
+  TableHeader,
+  TableHeaderCell,
+  TableCellLayout,
+  Switch,
+  Checkbox
 } from '@fluentui/react-components'
 import {
   FolderOpen24Regular, AlignSpaceFitVertical20Regular, AlignSpaceEvenlyVertical20Regular,
@@ -18,6 +27,10 @@ import { tokens } from '@fluentui/react-theme'
 import ReactECharts from 'echarts-for-react'
 import StopWatch from './StopWatch'
 import EcgDisplay from './EcgDisplay'
+import Spo2Display from './Spo2Display'
+
+import { CustomOptions as Dropup } from './Dropup'
+import { DropCat } from './DropCat'
 
 import { Transition, CSSTransition } from 'react-transition-group'
 import AnimateHeight from 'react-animate-height'
@@ -28,10 +41,6 @@ import path from 'node:path'
 import process from 'node:process'
 
 const ECG_SAMPLE_COUNT = 2000
-
-const useStyles = makeStyles({
-
-})
 
 const makeChartOpt = (base, data, opt = {}) => {
   const series = [Object.assign({}, base.series[0], { data })]
@@ -182,97 +191,266 @@ const Spacer96 = () => (<div style={{ height: 96 }}></div>)
 
 const max86141ConfigStyles = makeStyles({
   listbox: {
-    maxHeight: '200px'
+    maxHeight: '300px'
   }
 })
 
 const Max86141ConfigPanel = config => {
+  const styles = max86141ConfigStyles()
+  const minWidth = 0
+  const width = 200
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'left', margin: 16 }}>
-      <Divider>Photo Diode</Divider>
-      {/* ppg selection */}
-      <div style={{ display: 'flex', alignItems: 'center' }}>
-        <RadioGroup layout='horizontal' value='dual' disabled>
-          <Radio value='single' label='Single PPG' />
-          <Radio value='dual' label='Dual PPG' />
-        </RadioGroup>
-      </div>
+      <Divider>PPG Configuration</Divider>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '32px 1fr 1fr 1fr 1fr 1fr 1fr 1fr',
+        gap: '8px',
+        alignItems: 'center'
+      }}>
+        <Label>0x0D</Label>
+        <Label>System Control</Label>
+        3652120<Label style={{ textAlign: 'right' }}>PPG Channel:</Label>
+        <Checkbox label='Use only PPG1 channel' />
+        <div /><div /><div /><div />
 
-      {/* integration time, adc range */}
-      <div style={{ display: 'flex', alignItems: 'center' }}>
-        <Label>Integration Time: </Label>
-        <Dropdown listbox={{ className: max86141ConfigStyles.listbox }}>
+        <Label>0x11</Label>
+        <Label>PPG Configuration 1</Label>
+        <Label style={{ textAlign: 'right' }}>Integration Time:</Label>
+        <Dropdown style={{ minWidth, width }} listbox={{ className: styles.listbox }} appearance='underline'>
           { [0, 1, 2, 3].map(opt => (
             <Option key={'tint-key-' + opt}>
               {['14.8μS', '29.4μS', '58.7μS', '117.3μS'][opt]}
             </Option>
           ))}
         </Dropdown>
-        <Label>PPG1 ADC Range:</Label>
-        <Dropdown listbox={{ className: max86141ConfigStyles.listbox }}>
+        <Label style={{ textAlign: 'right' }}>PPG1 ADC Range:</Label>
+        <Dropdown style={{ minWidth, width }} listbox={{ className: styles.listbox }} appearance='underline'>
           { [0, 1, 2, 3].map(opt => (
             <Option key={'ppg1-adc-key-' + opt}>
               {[
-                '7.8125pA - full scale  4096nA',
-                '15.625pA - full scale  8192nA',
-                '31.250pA - full scale 16384nA',
-                '62.500pA - full scale 32768nA'][opt]}
+                '4096nA (7.8125pA lsb)',
+                '8192nA (15.625pA lsb)',
+                '16384nA (31.250pA lsb)',
+                '32768nA (62.500pA lsb)'][opt]}
             </Option>
           ))}
         </Dropdown>
-        <Label>PPG2 ADC Range:</Label>
-        <Dropdown listbox={{ className: max86141ConfigStyles.listbox }}>
+        <Label style={{ textAlign: 'right' }}>PPG2 ADC Range:</Label>
+        <Dropdown style={{ minWidth, width }} listbox={{ className: styles.listbox }} appearance='underline'>
           { [0, 1, 2, 3].map(opt => (
             <Option key={'ppg2-adc-key-' + opt}>
               {[
-                '7.8125pA - full scale  4096nA',
-                '15.625pA - full scale  8192nA',
-                '31.250pA - full scale 16384nA',
-                '62.500pA - full scale 32768nA'][opt]}
+                '4096nA (7.8125pA lsb)',
+                '8192nA (15.625pA lsb)',
+                '16384nA (31.250pA lsb)',
+                '32768nA (62.500pA lsb)'][opt]}
             </Option>
           ))}
         </Dropdown>
-      </div>
 
-      {/* integration time, adc range */}
-      <div style={{ display: 'flex', alignItems: 'center' }}>
-        <Label>Sampling Rate: </Label>
-        <Dropdown listbox={{ className: max86141ConfigStyles.listbox }}>
+        <Label>0x12</Label>
+        <Label>PPG Configuration 2</Label>
+        <Label style={{ textAlign: 'right' }}>Sampling Rate:</Label>
+        <Dropdown style={{ minWidth, width }} listbox={{ className: styles.listbox }} appearance='underline'>
           { [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13].map(opt => (
             <Option key={'sampling-rate-key-' + opt}>
               {[
-                '25Hz', '50Hz', '84Hz', '100Hz', '200Hz', '400Hz', '25Hz (2 pulses per sample)',
-                '50Hz (2 pulses per sample)', '84Hz (2 pulses per sample)', '100Hz (2 pulses per sample)',
+                '25Hz', '50Hz', '84Hz', '100Hz', '200Hz', '400Hz', '25Hz (2 pulses)',
+                '50Hz (2 pulses)', '84Hz (2 pulses)', '100Hz (2 pulses)',
                 '8Hz', '16Hz', '32Hz', '64Hz', '128Hz', '256Hz', '512Hz', '1024Hz', '2048Hz', '4096Hz'
               ][opt]}
 
             </Option>
           ))}
         </Dropdown>
-        <Label>Sample Averaging:</Label>
-        <Dropdown listbox={{ className: max86141ConfigStyles.listbox }}>
+        <Label style={{ textAlign: 'right' }}>Sample Averaging:</Label>
+        <Dropdown style={{ minWidth, width }} listbox={{ className: styles.listbox }} appearance='underline'>
           { [0, 1, 2, 3, 4, 5, 6, 7].map(opt => (
-            <Option key={'tint-key-' + opt}>
+            <Option key={'sample-average-key-' + opt}>
               {['1 (no averageing)', '2', '4', '8', '16', '32', '64', '128'][opt]}
             </Option>
           ))}
         </Dropdown>
-        <Label>PPG2 ADC Range:</Label>
-        <Dropdown>
+        <div /><div />
+
+        <Label>0x13</Label>
+        <Label>PPG Configuration 3</Label>
+        <Label style={{ textAlign: 'right' }}>LED Settling:</Label>
+        <Dropdown style={{ minWidth, width }} listbox={{ className: styles.listbox }} appearance='underline'>
           { [0, 1, 2, 3].map(opt => (
-            <Option key={'tint-key-' + opt}>
-              {[
-                '7.8125pA - full scale  4096nA',
-                '15.625pA - full scale  8192nA',
-                '31.250pA - full scale 16384nA',
-                '62.500pA - full scale 32768nA'][opt]}
+            <Option key={'led-settling-time-key-' + opt}>
+              {['4.0μS', '6.0μS', '8.0μS', '12.0μS'][opt]}
             </Option>
           ))}
         </Dropdown>
       </div>
 
-      {/* */}
+      {/* LED Sequence Control Begin */}
+      <Divider style={{ marginTop: 24, marginBottom: 8 }}>LED Sequence Control, Pulse Amplitude</Divider>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '32px 1fr 1fr 1fr 1fr 1fr 1fr 1fr',
+        gap: '8px',
+        alignItems: 'center'
+      }}>
+        <Label>0x20</Label>
+        <Label>LED Sequence Register 1</Label>
+        <Label style={{ textAlign: 'right' }}>LEDC1:</Label>
+        <Dropdown style={{ minWidth, width }} listbox={{ className: styles.listbox }} appearance='underline'>
+          { [1, 2, 3, 4, 5, 6, 7].map(opt => (
+            <Option key={'led-sequence-1-key-' + opt}>
+              {['LED1', 'LED2', 'LED3', 'LED1 + LED2', 'LED1 + LED3', 'LED2 + LED3', 'LED1 + LED2 + LED3'][opt - 1]}
+            </Option>
+          ))}
+        </Dropdown>
+        <Label style={{ gridRow: 1, gridColumn: 5, textAlign: 'right' }}>LEDC2:</Label>
+        <Dropdown style={{ minWidth, width }} listbox={{ className: styles.listbox }} appearance='underline'>
+          { [0, 1, 2, 3, 4, 5, 6, 7].map(opt => (
+            <Option key={'led-sequence-2-key-' + opt}>
+              {['NONE', 'LED1', 'LED2', 'LED3', 'LED1 + LED2', 'LED1 + LED3', 'LED2 + LED3', 'LED1 + LED2 + LED3'][opt]}
+            </Option>
+          ))}
+        </Dropdown>
+        <div /><div />
 
+        <Label style={{ gridRow: 2, gridColumn: 1 }}>0x21</Label>
+        <Label>LED Sequence Register 2</Label>
+        <Label style={{ textAlign: 'right' }}>LEDC3:</Label>
+        <Dropdown style={{ minWidth, width }} listbox={{ className: styles.listbox }} appearance='underline'>
+          { [0, 1, 2, 3, 4, 5, 6, 7].map(opt => (
+            <Option key={'led-sequence-3-key-' + opt}>
+              {['NONE', 'LED1', 'LED2', 'LED3', 'LED1 + LED2', 'LED1 + LED3', 'LED2 + LED3', 'LED1 + LED2 + LED3'][opt]}
+            </Option>
+          ))}
+        </Dropdown>
+        <Label style={{ textAlign: 'right' }}>LEDC4:</Label>
+        <Dropdown style={{ minWidth, width }} listbox={{ className: styles.listbox }} appearance='underline'>
+          { [0, 1, 2, 3, 4, 5, 6, 7].map(opt => (
+            <Option key={'led-sequence-3-key-' + opt}>
+              {['NONE', 'LED1', 'LED2', 'LED3', 'LED1 + LED2', 'LED1 + LED3', 'LED2 + LED3', 'LED1 + LED2 + LED3'][opt]}
+            </Option>
+          ))}
+        </Dropdown>
+        <div /><div />
+
+        <Label>0x22</Label>
+        <Label>LED Sequence Register 3</Label>
+        <Label style={{ textAlign: 'right' }}>LEDC4:</Label>
+        <Dropdown style={{ minWidth, width }} listbox={{ className: styles.listbox }} appearance='underline'>
+          { [0, 1, 2, 3, 4, 5, 6, 7].map(opt => (
+            <Option key={'led-sequence-3-key-' + opt}>
+              {['NONE', 'LED1', 'LED2', 'LED3', 'LED1 + LED2', 'LED1 + LED3', 'LED2 + LED3', 'LED1 + LED2 + LED3'][opt]}
+            </Option>
+          ))}
+        </Dropdown>
+        <Label style={{ textAlign: 'right' }}>LEDC5:</Label>
+        <Dropdown style={{ minWidth, width }} listbox={{ className: styles.listbox }} appearance='underline'>
+          { [0, 1, 2, 3, 4, 5, 6, 7].map(opt => (
+            <Option key={'led-sequence-3-key-' + opt}>
+              {['NONE', 'LED1', 'LED2', 'LED3', 'LED1 + LED2', 'LED1 + LED3', 'LED2 + LED3', 'LED1 + LED2 + LED3'][opt]}
+            </Option>
+          ))}
+        </Dropdown>
+        <div /><div />
+
+        <Label style={{ gridRow: 4 }}>0x23</Label>
+        <Label>LED1 PA</Label>
+        <Label style={{ textAlign: 'right' }}>LED1_DRV:</Label>
+        <Input style={{ minWidth, width }} appearance='underline' type='number' />
+        <div /><div /><div /><div />
+
+        <Label style={{ gridRow: 5 }}>0x24</Label>
+        <Label>LED2 PA</Label>
+        <Label style={{ textAlign: 'right' }}>LED2_DRV:</Label>
+        <Input style={{ minWidth, width }} appearance='underline' type='number' />
+        <div /><div /><div /><div />
+
+        <Label style={{ gridRow: 6 }}>0x25</Label>
+        <Label>LED3 PA</Label>
+        <Label style={{ textAlign: 'right' }}>LED3_DRV:</Label>
+        <Input style={{ minWidth, width }} appearance='underline' type='number' />
+        <div /><div /><div /><div />
+
+        <Label style={{ gridRow: 7 }}>0x26</Label>
+        <Label>LED4 PA</Label>
+        <Label style={{ textAlign: 'right' }}>LED4_DRV:</Label>
+        <Input style={{ minWidth, width }} appearance='underline' type='number' />
+        <div /><div /><div /><div />
+
+        <Label style={{ gridRow: 8 }}>0x27</Label>
+        <Label>LED5 PA</Label>
+        <Label style={{ textAlign: 'right' }}>LED5_DRV:</Label>
+        <Input style={{ minWidth, width }} appearance='underline' type='number' />
+        <div /><div /><div /><div />
+
+        <Label style={{ gridRow: 9 }}>0x28</Label>
+        <Label>LED6 PA</Label>
+        <Label style={{ textAlign: 'right' }}>LED6_DRV:</Label>
+        <Input style={{ minWidth, width }} appearance='underline' type='number' />
+        <div /><div /><div /><div />
+
+        <Label style={{ gridRow: 10 }}>0x29</Label>
+        <Label>LED PILOT PA</Label>
+        <Label style={{ textAlign: 'right' }}>PILOT_PA:</Label>
+        <Input style={{ minWidth, width }} appearance='underline' type='number' />
+        <div /><div /><div /><div />
+
+        <Label style={{ gridRow: 11 }}>0x2A</Label>
+        <Label>LED Range 1</Label>
+        <Label style={{ textAlign: 'right' }}>LED1_RGE:</Label>
+        <Dropdown style={{ minWidth, width }} listbox={{ className: styles.listbox }} appearance='underline'>
+          { [0, 1, 2, 3].map(opt => (
+            <Option key={'led1-range-key-' + opt}>
+              {['31mA', '62mA', '93mA', '124mA'][opt]}
+            </Option>
+          ))}
+        </Dropdown>
+        <Label style={{ textAlign: 'right' }}>LED2_RGE:</Label>
+        <Dropdown style={{ minWidth, width }} listbox={{ className: styles.listbox }} appearance='underline'>
+          { [0, 1, 2, 3].map(opt => (
+            <Option key={'led2-range-key-' + opt}>
+              {['31mA', '62mA', '93mA', '124mA'][opt]}
+            </Option>
+          ))}
+        </Dropdown>
+        <Label style={{ textAlign: 'right' }}>LED3_RGE:</Label>
+        <Dropdown style={{ minWidth, width }} listbox={{ className: styles.listbox }} appearance='underline'>
+          { [0, 1, 2, 3].map(opt => (
+            <Option key={'led3-range-key-' + opt}>
+              {['31mA', '62mA', '93mA', '124mA'][opt]}
+            </Option>
+          ))}
+        </Dropdown>
+
+        <Label style={{ gridRow: 12 }}>0x2B</Label>
+        <Label>LED Range 2</Label>
+        <Label style={{ textAlign: 'right' }}>LED4_RGE:</Label>
+        <Dropdown style={{ minWidth, width }} listbox={{ className: styles.listbox }} appearance='underline'>
+          { [0, 1, 2, 3].map(opt => (
+            <Option key={'led1-range-key-' + opt}>
+              {['31mA', '62mA', '93mA', '124mA'][opt]}
+            </Option>
+          ))}
+        </Dropdown>
+        <Label style={{ textAlign: 'right' }}>LED5_RGE:</Label>
+        <Dropdown style={{ minWidth, width }} listbox={{ className: styles.listbox }} appearance='underline'>
+          { [0, 1, 2, 3].map(opt => (
+            <Option key={'led2-range-key-' + opt}>
+              {['31mA', '62mA', '93mA', '124mA'][opt]}
+            </Option>
+          ))}
+        </Dropdown>
+        <Label style={{ textAlign: 'right' }}>LED6_RGE:</Label>
+        <Dropdown style={{ minWidth, width }} listbox={{ className: styles.listbox }} appearance='underline'>
+          { [0, 1, 2, 3].map(opt => (
+            <Option key={'led3-range-key-' + opt}>
+              {['31mA', '62mA', '93mA', '124mA'][opt]}
+            </Option>
+          ))}
+        </Dropdown>
+      </div>
     </div>
   )
 }
@@ -311,6 +489,8 @@ const MagusView = (props) => {
   const [spoRedAc, setSpoRedAc] = useState(initSpoOption)
   const [spoIrDc, setSpoIrDc] = useState(initSpoOption)
   const [spoRedDc, setSpoRedDc] = useState(initSpoOption)
+
+  const [spoOutput, setSpoOutput] = useState({})
 
   const [abpIr1, setAbpIr1] = useState(initAbpOption)
   const [abpIr2, setAbpIr2] = useState(initAbpOption)
@@ -407,6 +587,10 @@ const MagusView = (props) => {
           const [ppg1led1Filt, ppg1led2Filt] = e.data.filts
           const [ppg1led1Ac, ppg1led2Ac] = e.data.acs
           const [ppg1led1Dc, ppg1led2Dc] = e.data.dcs
+
+          const { acRms, dcAvg, ratio } = e.data
+
+          setSpoOutput({ acRms, dcAvg, ratio })
           setSpoIr({ series: [{ data: ppg1led1 }] })
           setSpoRed({ series: [{ data: ppg1led2 }] })
           setSpoIrFilt({ series: [{ data: ppg1led1Filt }] })
@@ -553,32 +737,33 @@ const MagusView = (props) => {
         </div>
         <Spacer24 />
         <div style={{ display: 'flex' }}>
-          {/* <div style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'space-around' }}> */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            {/* <div style={{ width: '50%' }}> */}
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'space-around' }}>
+          {/* <div style={{ flex: 1, minWidth: 0 }}> */}
+            <div style={{ width: '50%' }}>
               <Caption1 style={{ marginLeft: GRID_LEFT }}>IR - Original</Caption1>
               <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={spoIr} />
-              {/*
               <Caption1 style={{ marginLeft: 96 }}>IR - 170th order FIR Lowpass, cutoff freq 10Hz</Caption1>
               <ReactECharts style={{ height: 210, width: '100%' }} option={spoIrFilt} />
               <Caption1 style={{ marginLeft: 96 }}>IR, 4th Order Butterworth IIR Bandpass, cutoff freq 0.67Hz ~ 4.5Hz (AC)</Caption1>
               <ReactECharts style={{ height: 210, width: '100%' }} option={spoIrAc} />
               <Caption1 style={{ marginLeft: 96 }}>IR, 6th Order Butterworth IIR Lowpass, cutoff freq 0.67Hz (DC)</Caption1>
-              <ReactECharts style={{ height: 210, width: '100%' }} option={spoIrDc} /> */}
-            {/* </div> */}
-            {/* <div style={{ width: '50%' }}> */}
+              <ReactECharts style={{ height: 210, width: '100%' }} option={spoIrDc} />
+            </div>
+            <div style={{ width: '50%' }}>
               <Caption1 style={{ marginLeft: GRID_LEFT }}>RED - Original</Caption1>
               <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={spoRed} />
-              {/*
               <Caption1 style={{ marginLeft: 96 }}>RED - 170th order FIR Lowpass, cutoff freq 10Hz</Caption1>
               <ReactECharts style={{ height: 210, width: '100%' }} option={spoRedFilt} />
               <Caption1 style={{ marginLeft: 96 }}>RED, 4th Order Butterworth IIR Bandpass, cutoff freq 0.67Hz ~ 4.5Hz (AC)</Caption1>
               <ReactECharts style={{ height: 210, width: '100%' }} option={spoRedAc} />
               <Caption1 style={{ marginLeft: 96 }}>IR, 6th Order Butterworth IIR Lowpass, cutoff freq 0.67Hz (DC)</Caption1>
-            <ReactECharts style={{ height: 210, width: '100%' }} option={spoRedDc} /> */}
-            {/* </div> */}
+              <ReactECharts style={{ height: 210, width: '100%' }} option={spoRedDc} />
+            </div>
           </div>
-          <div style={{ width: DISPLAY_COLUMN_WIDTH }} />
+          <div style={{ width: DISPLAY_WIDTH, marginTop: 27, marginLeft: DISPLAY_MARGIN_LEFT, marginRight: DISPLAY_MARGIN_RIGHT }}>
+            <Spo2Display {...spoOutput} />
+          </div>
+          {/* <div style={{ width: DISPLAY_COLUMN_WIDTH }} /> */}
         </div>
 
         <Divider style={{ marginTop: 48, marginBottom: 48 }} />
@@ -644,7 +829,7 @@ const MagusView = (props) => {
               icon={abpConfiguring ? <Edit24Filled /> : <Edit24Regular />}
               onClick={() => {
                 setAbpConfiguring(!abpConfiguring)
-                setAbpConfigPanelHeight(!abpConfiguring ? 500 : 0)
+                setAbpConfigPanelHeight(!abpConfiguring ? 900 : 0)
               }}
               // disabled={abpRecording}
               disabled={true}
@@ -661,7 +846,7 @@ const MagusView = (props) => {
             marginTop: 8,
             marginLeft: GRID_LEFT,
             marginRight: DISPLAY_COLUMN_WIDTH,
-            backgroundColor: tokens.colorNeutralBackground4,
+            backgroundColor: tokens.colorNeutralBackground1,
             borderRadius: tokens.borderRadiusMedium,
             display: 'flex',
             flexDirection: 'column'

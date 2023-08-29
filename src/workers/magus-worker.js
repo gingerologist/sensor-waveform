@@ -206,13 +206,13 @@ const startAsync = async () => {
           case 0x0001: {
             const parsed = max86141Parse(parted.tlvs)
             if (parsed.brief.instanceId === 0) {
-              const { brief, filed, origs, filts, acs, dcs /* , ratio */ } = spoMax86141ViewData.build(parsed)
+              const { brief, filed, origs, filts, acs, dcs, acRms, dcAvg, ratio } = spoMax86141ViewData.build(parsed)
               // const r = ratio[1] / ratio[0]
               // const a = -16.666666
               // const b = 8.333333
               // const c = 100
               // console.log(a * r * r + b * r + c)
-              self.postMessage({ brief, origs, filts, acs, dcs },
+              self.postMessage({ brief, origs, filts, acs, dcs, acRms, dcAvg, ratio },
                 [...origs.map(x => x.buffer), ...filts.map(x => x.buffer), ...acs.map(x => x.buffer), ...dcs.map(x => x.buffer)])
 
               if (max86141SpoLog) {
@@ -222,7 +222,6 @@ const startAsync = async () => {
                 }
               }
             } else if (parsed.brief.instanceId === 1) {
-              console.log(parsed)
               const viewData = abpMax86141ViewData.build(parsed)
 
               const { brief, filed, origs, filts } = viewData
