@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { useState } from 'react'
 import { tokens } from '@fluentui/react-theme'
-import { Switch } from '@fluentui/react-components'
+import { Switch, Tooltip } from '@fluentui/react-components'
 
 const inRange = (values, min, max) => {
   return values.findIndex(x => x < min || x >= max) === -1
@@ -71,7 +71,9 @@ const Spo2Display = ({ acRms, dcAvg, ratio }) => {
         </div>
       </div>
       <div style={{ backgroundColor: tokens.colorNeutralBackground1, height: 48, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-        <Switch checked={filter} onChange={() => setFilter(!filter)} label='filter out invalid result'/>
+        <Tooltip content='The calculated spo2 value is considered "valid" only if the average DCs are in the range of 200,000 to 520,000 and ACs (rms) are in the range of 30 to 300 for both IR and RED signals.'>
+          <Switch checked={filter} onChange={() => setFilter(!filter)} label='filter out invalid result'/>
+        </Tooltip>
       </div>
     </div>
   )

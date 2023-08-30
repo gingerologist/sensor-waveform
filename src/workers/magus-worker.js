@@ -19,7 +19,7 @@ import createAds129xViewData from '../viewdata/ads129xViewData.js'
 
 import timestamp from '../lib/timestamp.js'
 import createMax86141ViewData from '../viewdata/max86141ViewData.js'
-import createMax86141Config from '../protocol/max86141Config.js'
+// import createMax86141Config from '../protocol/max86141Config.js'
 
 // prepare log folder
 const logDir = path.join(process.cwd(), 'log')
@@ -206,6 +206,7 @@ const startAsync = async () => {
           case 0x0001: {
             const parsed = max86141Parse(parted.tlvs)
             if (parsed.brief.instanceId === 0) {
+              console.log(parsed.regs)
               const { brief, filed, origs, filts, acs, dcs, acRms, dcAvg, ratio } = spoMax86141ViewData.build(parsed)
               // const r = ratio[1] / ratio[0]
               // const a = -16.666666

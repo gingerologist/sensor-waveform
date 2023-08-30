@@ -177,7 +177,6 @@ const parseDetail = (data, tlv) => {
         (raw[11] >> 2) & 0x03,
         (raw[11] >> 4) & 0x03
       ]
-
       break
     }
     default:
