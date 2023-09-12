@@ -50,7 +50,7 @@ const makeChartOpt = (base, data, opt = {}) => {
   return { ...base, series, ...opt }
 }
 
-const GRID_RIGHT = 8
+const GRID_RIGHT = 16
 const GRID_LEFT = 96
 
 const DISPLAY_MARGIN_LEFT = 24
@@ -187,21 +187,39 @@ const initAbpOption = {
   }]
 }
 
-const tempInitOpt = {
+/**
+ * series: [
+    {
+      name: 'foo',
+      type: 'line',
+      data: [[1, 2], [2, 3]]
+    }, {
+      name: 'bar',
+      type: 'line',
+      data: [[1, 0], [2, 7]]
+    }
+  ]
+ */
+const tempChartInitOption = {
   grid: {
     show: true,
     left: GRID_LEFT,
     right: GRID_RIGHT,
-    top: 8,
+    top: 64,
     bottom: 24
   },
-  xAxis: { type: 'value' },
-  yAxis: { type: 'value' },
+  legend: { show: true },
+  tooltip: { trigger: 'axis' },
+  xAxis: {
+    type: 'value',
+    minInterval: 60
+  },
+  yAxis: {
+    type: 'value',
+    min: 15,
+    max: 45
+  },
   series: []
-}
-
-const tempChartInitProps = {
-  option: tempInitOpt
 }
 
 const chartOpt = (data) => ({ series: [{ data }] })
@@ -209,14 +227,17 @@ const chartOpt = (data) => ({ series: [{ data }] })
 const Spacer24 = () => (<div style={{ height: 24 }}></div>)
 const Spacer96 = () => (<div style={{ height: 96 }}></div>)
 
+const worker = new Worker(new URL('../workers/magus-worker.js', import.meta.url))
+
 const MagusView = (props) => {
-  const [worker, setWorker] = useState(null)
+  // const [worker, setWorker] = useState(null)
 
   const [selectedTab, setSelectedTab] = useState('ECG')
 
   const [ecgRecording, setEcgRecording] = useState(false)
   const [spoRecording, setSpoRecording] = useState(false)
   const [abpRecording, setAbpRecording] = useState(false)
+  const [tempRecording, setTempRecording] = useState(false)
 
   const [heartRate, setHeartRate] = useState(255)
   const [in2pOff, setIn2pOff] = useState(100)
@@ -229,7 +250,7 @@ const MagusView = (props) => {
   const [ecgChartHeight, setEcgChartHeight] = useState(300)
   const [spoChartHeight, setSpoChartHeight] = useState(300)
   const [abpChartHeight, setAbpChartHeight] = useState(300)
-  const [tempChartHeight, setTempChartHeight] = useState(300)
+  const [tempChartHeight, setTempChartHeight] = useState(600)
 
   const [abpSamplesInChart, setAbpSamplesInChart] = useState(ABP_DEFAULT_SAMPLES_IN_CHART)
 
@@ -262,7 +283,7 @@ const MagusView = (props) => {
   const [abpConfigShow, setAbpConfigShow] = useState(false)
   const [abpConfigEdit, setAbpConfigEdit] = useState([])
 
-  const [tempChartProps, setTempChartProps] = useState(tempChartInitProps)
+  const [tempChartOption, setTempChartOption] = useState(tempChartInitOption)
 
   const [abpOrder, setApbOrder] = useState([
     'PPG1-IR, Original',
@@ -316,8 +337,8 @@ const MagusView = (props) => {
   }
   // run once
   useEffect(() => {
-    const w = new Worker(new URL('../workers/magus-worker.js', import.meta.url))
-    w.onmessage = e => {
+    // const w = new Worker(new URL('../workers/magus-worker.js', import.meta.url))
+    worker.onmessage = e => {
       if (e.data.oob) {
         if (e.data.oob === 'ads129x-recording-started') {
           setEcgRecording(true)
@@ -331,6 +352,10 @@ const MagusView = (props) => {
           setAbpRecording(true)
         } else if (e.data.oob === 'max86141-abp-recording-stopped') {
           setAbpRecording(false)
+        } else if (e.data.oob === 'm601z-recording-started') {
+          setTempRecording(true)
+        } else if (e.data.oob === 'm601z-recording-stopped') {
+          setTempRecording(false)
         }
         return
       }
@@ -387,28 +412,31 @@ const MagusView = (props) => {
       } else if (brief.sensorId === 4) { // m601z
         const { idTemps, count } = e.data
 
-        const series = idTemps.map(idtemp => {
-          return {
-            name: idtemp.id,
-            type: 'line',
-            stack: 'stack',
-            data: [[count, idtemp.temp]]
+        /**
+         * convert old series (object array) to new one
+         * 1. find line data, append or create new
+         */
+
+        const { series } = tempChartOption
+
+        idTemps.forEach(({ id, temp }) => {
+          const line = series.find(x => x.name === id)
+          if (line) {
+            line.data.push([count * 2, temp])
+            if (line.data.length > 1200) {
+              line.data.shift()
+            }
+          } else {
+            series.push({
+              name: id,
+              type: 'line',
+              data: [[count * 2, temp]]
+            })
           }
         })
 
-        console.log('series: ', series)
-
-        setTempChartProps({
-          option: { series }
-        })
+        setTempChartOption({ series, count })
       }
-    }
-
-    setWorker(w)
-
-    return () => {
-      w.terminate()
-      setWorker(null)
     }
   }, [])
 
@@ -508,6 +536,7 @@ const MagusView = (props) => {
                 }} />
           </Toolbar>
         </div>
+
         <Spacer24 />
         <div style={{ display: 'flex' }}>
           <div style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'space-around' }}>
@@ -708,13 +737,45 @@ const MagusView = (props) => {
         </div>
 
         <Divider style={{ marginTop: 48, marginBottom: 48 }} />
+
         <h1 style={{ marginLeft: GRID_LEFT }}>BODY TEMPERATURES</h1>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginRight: DISPLAY_COLUMN_WIDTH }}>
+          <Toolbar style={{ backgroundColor: tokens.colorNeutralBackground3, borderRadius: 8 }}>
+            <StopWatch
+              onStart={() => {
+                worker.postMessage({ type: 'm601z-recording-start' })
+              }}
+              onStop={() => {
+                worker.postMessage({ type: 'm601z-recording-stop' })
+              }}
+              started={tempRecording}
+            >
+              {tempRecording}
+            </StopWatch>
+            <ToolbarButton onClick={() => shell.openExternal(path.join(process.cwd(), 'log'))} icon={<FolderOpen24Regular />} />
+            <ToolbarDivider />
+            <ToolbarButton
+                disabled={tempChartHeight <= CHART_MIN_HEIGHT}
+                icon={<AlignSpaceEvenlyVertical20Regular />}
+                onClick={() => {
+                  setTempChartHeight(tempChartHeight - CHART_STEP_HEIGHT)
+                }} />
+              <ToolbarButton
+                disabled={tempChartHeight >= CHART_MAX_HEIGHT}
+                icon={<AlignSpaceFitVertical20Regular />}
+                onClick={() => {
+                  setTempChartHeight(tempChartHeight + CHART_STEP_HEIGHT)
+                }} />
+          </Toolbar>
+        </div>
+
+        <Spacer24 />
+
         <div style={{ display: 'flex' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <ReactECharts
               style={{ height: tempChartHeight, width: '100%' }}
-              notMerge={tempChartProps.notMerge}
-              option={tempChartProps.option}
+              option={tempChartOption}
             />
           </div>
           <div style={{ width: DISPLAY_COLUMN_WIDTH }} />

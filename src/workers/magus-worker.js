@@ -70,6 +70,7 @@ const startAsync = async () => {
   let ads129xLog = null
   let max86141SpoLog = null
   let max86141AbpLog = null
+  let m601zLog = null
   let tempCount = 0
 
   const makeHeadline = arr => arr.map(s => `"${s}"`).join(', ') + '\r\n'
@@ -82,8 +83,10 @@ const startAsync = async () => {
   ])
 
   const max86141SpoHeadline = makeHeadline(['IR', 'RED'])
-
   const max86141AbpHeadline = makeHeadline(['PPG1-IR', 'PPG2-IR', 'PPG1-RED', 'PPG2-RED', 'PPG1-GREEN', 'PPG2-GREEN'])
+  
+  let m601zHeadlineNames = []
+  const m601zHeadline = () => makeHeadline(m601zHeadlineNames)
 
   const startAds129xLogging = () => {
     if (ads129xLog === null) {
@@ -139,6 +142,24 @@ const startAsync = async () => {
     self.postMessage({ oob: 'max86141-abp-recording-stopped' })
   }
 
+  const startM601zLogging = () => {
+    if (m601zLog === null) {
+      const filename = `tempdata-${timestamp()}.csv`
+      const filepath = path.join(process.cwd(), 'log', filename)
+      m601zLog = fs.createWriteStream(filepath)
+      m601zLog.write(m601zHeadline())
+    }
+    self.postMessage({ oob: 'm601z-recording-started' })
+  }
+
+  const stopM601zLogging = () => {
+    if (m601zLog) {
+      m601zLog.end()
+      m601zLog = null
+    }
+    self.postMessage({ oob: 'm601z-recording-stopped' })
+  }
+
   handleMessage = (message) => {
     const { type } = message
     console.log(`magus worker handle message: ${type}`)
@@ -164,6 +185,12 @@ const startAsync = async () => {
       case 'max86141-abp-samples-in-chart':
         // console.log('max86141-abp-samples-in-chart', message.samplesInChart)
         abpMax86141ViewData.reset(message.samplesInChart)
+        break
+      case 'm601z-recording-start':
+        startM601zLogging()
+        break
+      case 'm601z-recording-stop':
+        stopM601zLogging()
         break
       default:
         break
@@ -194,7 +221,12 @@ const startAsync = async () => {
         switch (parted.sensorId) {
           case 0x0004: {
             const parsed = m601zParse(parted.tlvs)
+            m601zHeadlineNames = parsed.idTemps.map(x => x.id)
             self.postMessage({ ...parsed, count: tempCount++ })
+
+            if (m601zLog) {
+              m601zLog.write(parsed.idTemps.map(x => x.temp).join() + '\r\n')
+            }
             break
           }
           case 0x0002: {
