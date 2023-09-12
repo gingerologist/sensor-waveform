@@ -125,9 +125,12 @@ const parseDetail = (data, tlv) => {
       break
     }
     case 0x10: {
+      data.reg10 = tlv.value
+
+      /**
       const raw = Array.from(tlv.value)
       if (!data.regs) {
-        data.regs = {}
+
       }
 
       data.regs.ppgSyncCtrl = {
@@ -158,9 +161,12 @@ const parseDetail = (data, tlv) => {
         iirInitValue: (raw[6] >> 2) & 0x03,
         thresholdSigmaMult: raw[6] & 0x03
       }
+       */
       break
     }
     case 0x20: {
+      data.reg20 = tlv.value
+      /**
       const raw = Array.from(tlv.value)
       if (!data.regs) {
         data.regs = {}
@@ -177,6 +183,7 @@ const parseDetail = (data, tlv) => {
         (raw[11] >> 2) & 0x03,
         (raw[11] >> 4) & 0x03
       ]
+       */
       break
     }
     default:

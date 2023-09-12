@@ -185,11 +185,13 @@ class Max86141ViewData {
     this.clearAhead = clearAhead || 100
     this.filters = Array.isArray(filters) || []
     this.transforms = taglist.map(name => new Transform(name, this.samplesInChart))
+    this.regbuf = Buffer.alloc(0)
   }
 
   reset (samplesInChart) {
     this.samplesInChart = samplesInChart
     this.transforms.forEach(trans => trans.reset(samplesInChart))
+    this.regbuf = Buffer.alloc(0)
   }
 
   modulo (n) {
@@ -280,7 +282,8 @@ class Max86141ViewData {
   //   return viewdata
   // }
   build (parsed) {
-    const { brief, samples } = parsed
+    const { brief, samples, reg10, reg20 } = parsed
+
     const viewData = { brief, filed: [], origs: [], filts: [], acs: [], dcs: [], acRms: [], dcAvg: [], ratio: [] }
     this.transforms.forEach(trans => {
       const filed = samples
@@ -297,6 +300,13 @@ class Max86141ViewData {
       viewData.dcAvg.push(dcAvg)
       viewData.ratio.push(ratio)
     })
+
+    // const reg0d = Buffer.alloc(1)
+    // if (Object.prototype.hasOwnProperty.call(brief, 'ppg1') && 
+    //   Object.prototype.hasOwnProperty.call(brief, 'ppg2')) {
+    //   const val = brief.ppg2 === 0 ?  : 
+    // }
+
     return viewData
   }
 }

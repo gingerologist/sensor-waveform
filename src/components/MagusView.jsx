@@ -50,7 +50,7 @@ const makeChartOpt = (base, data, opt = {}) => {
   return { ...base, series, ...opt }
 }
 
-const GRID_RIGHT = 0
+const GRID_RIGHT = 8
 const GRID_LEFT = 96
 
 const DISPLAY_MARGIN_LEFT = 24
@@ -187,6 +187,23 @@ const initAbpOption = {
   }]
 }
 
+const tempInitOpt = {
+  grid: {
+    show: true,
+    left: GRID_LEFT,
+    right: GRID_RIGHT,
+    top: 8,
+    bottom: 24
+  },
+  xAxis: { type: 'value' },
+  yAxis: { type: 'value' },
+  series: []
+}
+
+const tempChartInitProps = {
+  option: tempInitOpt
+}
+
 const chartOpt = (data) => ({ series: [{ data }] })
 
 const Spacer24 = () => (<div style={{ height: 24 }}></div>)
@@ -212,6 +229,7 @@ const MagusView = (props) => {
   const [ecgChartHeight, setEcgChartHeight] = useState(300)
   const [spoChartHeight, setSpoChartHeight] = useState(300)
   const [abpChartHeight, setAbpChartHeight] = useState(300)
+  const [tempChartHeight, setTempChartHeight] = useState(300)
 
   const [abpSamplesInChart, setAbpSamplesInChart] = useState(ABP_DEFAULT_SAMPLES_IN_CHART)
 
@@ -243,6 +261,8 @@ const MagusView = (props) => {
   const [abpConfigPanelHeight, setAbpConfigPanelHeight] = useState(0)
   const [abpConfigShow, setAbpConfigShow] = useState(false)
   const [abpConfigEdit, setAbpConfigEdit] = useState([])
+
+  const [tempChartProps, setTempChartProps] = useState(tempChartInitProps)
 
   const [abpOrder, setApbOrder] = useState([
     'PPG1-IR, Original',
@@ -364,6 +384,23 @@ const MagusView = (props) => {
         setEcgNtch(makeChartOpt(ecgOptBase, ecgNtchData))
         // setEcgNlhp({ series: [{ data: ecgNlhpData }] })
         setEcgNlhp(makeChartOpt(ecgOptBase, ecgNlhpData))
+      } else if (brief.sensorId === 4) { // m601z
+        const { idTemps, count } = e.data
+
+        const series = idTemps.map(idtemp => {
+          return {
+            name: idtemp.id,
+            type: 'line',
+            stack: 'stack',
+            data: [[count, idtemp.temp]]
+          }
+        })
+
+        console.log('series: ', series)
+
+        setTempChartProps({
+          option: { series }
+        })
       }
     }
 
@@ -666,6 +703,19 @@ const MagusView = (props) => {
                 )
               })
             }
+          </div>
+          <div style={{ width: DISPLAY_COLUMN_WIDTH }} />
+        </div>
+
+        <Divider style={{ marginTop: 48, marginBottom: 48 }} />
+        <h1 style={{ marginLeft: GRID_LEFT }}>BODY TEMPERATURES</h1>
+        <div style={{ display: 'flex' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <ReactECharts
+              style={{ height: tempChartHeight, width: '100%' }}
+              notMerge={tempChartProps.notMerge}
+              option={tempChartProps.option}
+            />
           </div>
           <div style={{ width: DISPLAY_COLUMN_WIDTH }} />
         </div>

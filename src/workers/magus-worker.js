@@ -15,11 +15,14 @@ import { Buffer } from 'node:buffer'
 import { sensparse } from '../protocol/sensparse.js'
 import { ads129xParse } from '../protocol/ads129xParse.js'
 import { max86141Parse } from '../protocol/max86141Parse.js'
+import { m601zParse } from '../protocol/m601zParse.js'
 import createAds129xViewData from '../viewdata/ads129xViewData.js'
 
 import timestamp from '../lib/timestamp.js'
 import createMax86141ViewData from '../viewdata/max86141ViewData.js'
 // import createMax86141Config from '../protocol/max86141Config.js'
+
+import createM601zViewData from '../viewdata/m601zViewData.js'
 
 // prepare log folder
 const logDir = path.join(process.cwd(), 'log')
@@ -52,6 +55,10 @@ const startAsync = async () => {
     taglist: ['PPG1_LED1', 'PPG2_LED1', 'PPG1_LED2', 'PPG2_LED2', 'PPG1_LED3', 'PPG2_LED3']
   })
 
+  const m601zViewData = createM601zViewData({
+    samplesInChart: 60
+  })
+
   // const abpMax86141Config = createMax86141Config()
 
   // const abpMax86141ViewData = createMax86141ViewData({
@@ -63,6 +70,7 @@ const startAsync = async () => {
   let ads129xLog = null
   let max86141SpoLog = null
   let max86141AbpLog = null
+  let tempCount = 0
 
   const makeHeadline = arr => arr.map(s => `"${s}"`).join(', ') + '\r\n'
 
@@ -184,6 +192,11 @@ const startAsync = async () => {
         input = input.subarray(parted.packetEnd)
 
         switch (parted.sensorId) {
+          case 0x0004: {
+            const parsed = m601zParse(parted.tlvs)
+            self.postMessage({ ...parsed, count: tempCount++ })
+            break
+          }
           case 0x0002: {
             const parsed = ads129xParse(parted.tlvs)
             const {
@@ -206,7 +219,7 @@ const startAsync = async () => {
           case 0x0001: {
             const parsed = max86141Parse(parted.tlvs)
             if (parsed.brief.instanceId === 0) {
-              console.log(parsed.regs)
+              // console.log(Object.keys(parsed))
               const { brief, filed, origs, filts, acs, dcs, acRms, dcAvg, ratio } = spoMax86141ViewData.build(parsed)
               // const r = ratio[1] / ratio[0]
               // const a = -16.666666
@@ -290,6 +303,6 @@ self.addEventListener('message', function (e) {
   }
 })
 
-startAsync().then(() => {}).catch(e => console.log(e))
+startAsync().then(() => { }).catch(e => console.log(e))
 
 console.log('magus worker started')
