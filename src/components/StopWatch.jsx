@@ -27,7 +27,7 @@ const StopWatch = ({ onStart, onStop, started, disabled }) => {
   }
 
   useEffect(() => {
-    console.log(`stop watch effect, counting: ${counting}`)
+    // console.log(`stop watch effect, counting: ${counting}`)
     if (counting) {
       const timer = setInterval(() => {
         setElapsed(elapsed + 1)

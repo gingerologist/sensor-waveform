@@ -24,6 +24,37 @@ import createMax86141ViewData from '../viewdata/max86141ViewData.js'
 
 import createM601zViewData from '../viewdata/m601zViewData.js'
 
+const samplingFreq = regVal => [
+  24.995,
+  50.027,
+  84.021,
+  99.902,
+  199.805,
+  399.610,
+  24.995,
+  50.207,
+  84.021,
+  99.902,
+  8,
+  16,
+  32,
+  64,
+  128,
+  256,
+  512,
+  1024,
+  2048,
+  4096
+][regVal]
+
+const readSamplingRate = reg12 => {
+  const ppgSr = reg12 >> 3
+  const freq = samplingFreq(ppgSr)
+  const smpAve = reg12 & 0x07
+  const oversamples = 0x01 << smpAve
+  return freq / oversamples
+}
+
 // prepare log folder
 const logDir = path.join(process.cwd(), 'log')
 fs.mkdir(logDir, err => console.log(err))
@@ -69,7 +100,11 @@ const startAsync = async () => {
 
   let ads129xLog = null
   let max86141SpoLog = null
+
   let max86141AbpLog = null
+  let max86141AbpStartUs = 0
+  let max86141AbpCount = 0
+
   let m601zLog = null
   let tempCount = 0
 
@@ -83,8 +118,9 @@ const startAsync = async () => {
   ])
 
   const max86141SpoHeadline = makeHeadline(['IR', 'RED'])
-  const max86141AbpHeadline = makeHeadline(['PPG1-IR', 'PPG2-IR', 'PPG1-RED', 'PPG2-RED', 'PPG1-GREEN', 'PPG2-GREEN'])
-  
+  // const max86141AbpHeadline = makeHeadline(['PPG1-IR', 'PPG2-IR', 'PPG1-RED', 'PPG2-RED', 'PPG1-GREEN', 'PPG2-GREEN'])
+  // let max86141AbpHeadline
+
   let m601zHeadlineNames = []
   const m601zHeadline = () => makeHeadline(m601zHeadlineNames)
 
@@ -129,7 +165,10 @@ const startAsync = async () => {
       const filename = `abpdata-${timestamp()}.csv`
       const filepath = path.join(process.cwd(), 'log', filename)
       max86141AbpLog = fs.createWriteStream(filepath)
-      max86141AbpLog.write(max86141AbpHeadline)
+
+      // reset count
+      max86141AbpCount = 0
+      // max86141AbpLog.write(max86141AbpHeadline)
     }
     self.postMessage({ oob: 'max86141-abp-recording-started' })
   }
@@ -250,9 +289,13 @@ const startAsync = async () => {
           }
           case 0x0001: {
             const parsed = max86141Parse(parted.tlvs)
+
             if (parsed.brief.instanceId === 0) {
-              // console.log(Object.keys(parsed))
-              const { brief, filed, origs, filts, acs, dcs, acRms, dcAvg, ratio } = spoMax86141ViewData.build(parsed)
+              const viewData = spoMax86141ViewData.build(parsed)
+
+              console.log(viewData)
+
+              const { brief, filed, origs, filts, acs, dcs, acRms, dcAvg, ratio } = viewData
               // const r = ratio[1] / ratio[0]
               // const a = -16.666666
               // const b = 8.333333
@@ -269,15 +312,29 @@ const startAsync = async () => {
               }
             } else if (parsed.brief.instanceId === 1) {
               const viewData = abpMax86141ViewData.build(parsed)
-
               const { brief, filed, origs, filts } = viewData
               self.postMessage({ brief, origs, filts },
                 [...origs.map(x => x.buffer), ...filts.map(x => x.buffer)])
 
               if (max86141AbpLog) {
-                for (let i = 0; i < filed[0].length; i++) {
-                  max86141AbpLog.write(`${filed[0][i]}, ${filed[1][i]}, ${filed[2][i]}, ${filed[3][i]}, ${filed[4][i]}, ${filed[5][i]}\r\n`)
+                if (max86141AbpCount === 0) {
+                  max86141AbpStartUs = Date.now() * 1000
+                  const headline = ['timestamp', ...viewData.tags].join(', ') + '\r\n'
+                  max86141AbpLog.write(headline)
                 }
+
+                const rows = filed[0].length
+                const intervalUs = 1000 * 1000 / readSamplingRate(parsed.reg10[2])
+                const base = max86141AbpStartUs + max86141AbpCount * rows * intervalUs
+
+                for (let row = 0; row < rows; row++) {
+                  const timestamp = Math.round(base + row * intervalUs)
+                  const list = filed.reduce((list, col) => [...list, col[row]], [])
+                  const line = timestamp.toString() + ', ' + list.join(', ') + '\r\n'
+                  max86141AbpLog.write(line)
+                }
+
+                max86141AbpCount++
               }
             }
             break
@@ -295,6 +352,7 @@ const startAsync = async () => {
       stopAds129xLogging()
       stopMax86141SpoLogging()
       stopMax86141AbpLogging()
+      stopM601zLogging()
 
       self.postMessage({ oob: 'stopped' }) // TODO
     }

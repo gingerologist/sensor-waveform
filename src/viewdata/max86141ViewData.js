@@ -3,6 +3,9 @@ const Fili = require('fili')
 const iirCalc = new Fili.CalcCascades()
 const firCalc = new Fili.FirCoeffs()
 
+const extractTagList = samples =>
+  samples.reduce((list, sample) => list.includes(sample.name) ? list : [...list, sample.name], [])
+
 const fromTagName = name => {
   switch (name) {
     case 'PPG1_LED1':
@@ -184,7 +187,7 @@ class Max86141ViewData {
     this.samplesInChart = samplesInChart || 600
     this.clearAhead = clearAhead || 100
     this.filters = Array.isArray(filters) || []
-    this.transforms = taglist.map(name => new Transform(name, this.samplesInChart))
+    // this.transforms = taglist.map(name => new Transform(name, this.samplesInChart))
     this.regbuf = Buffer.alloc(0)
   }
 
@@ -283,8 +286,12 @@ class Max86141ViewData {
   // }
   build (parsed) {
     const { brief, samples, reg10, reg20 } = parsed
+    if (!this.transforms) {
+      const taglist = samples.reduce((list, sample) => list.includes(sample.name) ? list : [...list, sample.name], [])
+      this.transforms = taglist.map(name => new Transform(name, this.samplesInChart))
+    }
 
-    const viewData = { brief, filed: [], origs: [], filts: [], acs: [], dcs: [], acRms: [], dcAvg: [], ratio: [] }
+    const viewData = { brief, filed: [], origs: [], filts: [], acs: [], dcs: [], acRms: [], dcAvg: [], ratio: [], tags: this.transforms.map(t => t.name) }
     this.transforms.forEach(trans => {
       const filed = samples
         .filter(smpl => smpl.tag === trans.tag)
@@ -302,9 +309,9 @@ class Max86141ViewData {
     })
 
     // const reg0d = Buffer.alloc(1)
-    // if (Object.prototype.hasOwnProperty.call(brief, 'ppg1') && 
+    // if (Object.prototype.hasOwnProperty.call(brief, 'ppg1') &&
     //   Object.prototype.hasOwnProperty.call(brief, 'ppg2')) {
-    //   const val = brief.ppg2 === 0 ?  : 
+    //   const val = brief.ppg2 === 0 ?  :
     // }
 
     return viewData
