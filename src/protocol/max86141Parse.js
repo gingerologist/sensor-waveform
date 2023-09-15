@@ -1,4 +1,4 @@
-const samplingRate = (ppgCfg2) => {
+const samplingRate = ppgCfg2 => {
   const ppgSr = ppgCfg2 >> 3
   const smpAve = ppgCfg2 & 0x07
 
@@ -27,6 +27,37 @@ const samplingRate = (ppgCfg2) => {
 
   const pair = srmap.find(arr => arr[0] === ppgSr)
   return pair[1] / (1 << smpAve)
+}
+
+const samplingFreq = regVal => [
+  24.995,
+  50.027,
+  84.021,
+  99.902,
+  199.805,
+  399.610,
+  24.995,
+  50.207,
+  84.021,
+  99.902,
+  8,
+  16,
+  32,
+  64,
+  128,
+  256,
+  512,
+  1024,
+  2048,
+  4096
+][regVal]
+
+const readSamplingRate = reg12 => {
+  const ppgSr = reg12 >> 3
+  const freq = samplingFreq(ppgSr)
+  const smpAve = reg12 & 0x07
+  const oversamples = 0x01 << smpAve
+  return freq / oversamples
 }
 
 const parseBrief = tlv => {
@@ -126,6 +157,7 @@ const parseDetail = (data, tlv) => {
     }
     case 0x10: {
       data.reg10 = tlv.value
+      data.brief.samplingRate = samplingRate(data.reg10[2])
 
       /**
       const raw = Array.from(tlv.value)

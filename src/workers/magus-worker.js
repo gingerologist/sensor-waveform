@@ -20,7 +20,7 @@ import createAds129xViewData from '../viewdata/ads129xViewData.js'
 
 import timestamp from '../lib/timestamp.js'
 import createMax86141ViewData from '../viewdata/max86141ViewData.js'
-// import createMax86141Config from '../protocol/max86141Config.js'
+///// import createMax86141Config from '../protocol/max86141Config.js'
 
 import createM601zViewData from '../viewdata/m601zViewData.js'
 
@@ -292,9 +292,7 @@ const startAsync = async () => {
 
             if (parsed.brief.instanceId === 0) {
               const viewData = spoMax86141ViewData.build(parsed)
-
-              console.log(viewData)
-
+              // console.log(viewData)
               const { brief, filed, origs, filts, acs, dcs, acRms, dcAvg, ratio } = viewData
               // const r = ratio[1] / ratio[0]
               // const a = -16.666666
@@ -312,14 +310,14 @@ const startAsync = async () => {
               }
             } else if (parsed.brief.instanceId === 1) {
               const viewData = abpMax86141ViewData.build(parsed)
-              const { brief, filed, origs, filts } = viewData
-              self.postMessage({ brief, origs, filts },
-                [...origs.map(x => x.buffer), ...filts.map(x => x.buffer)])
+              const { brief, filed, origs, filts, acs, tags } = viewData
+              self.postMessage({ brief, origs, filts, acs, tags },
+                [...origs.map(x => x.buffer), ...filts.map(x => x.buffer), ...acs.map(x => x.buffer)])
 
               if (max86141AbpLog) {
                 if (max86141AbpCount === 0) {
                   max86141AbpStartUs = Date.now() * 1000
-                  const headline = ['timestamp', ...viewData.tags].join(', ') + '\r\n'
+                  const headline = ['timestamp', ...tags].join(', ') + '\r\n'
                   max86141AbpLog.write(headline)
                 }
 

@@ -1,23 +1,9 @@
 import * as React from 'react'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 
 import {
-  Button, Input, makeStyles, Toolbar, ToolbarButton, Caption1, Body1, ToolbarDivider, Divider, shorthands,
-  Tab, TabList, SelectTabData, SelectTabEvent, TabValue, Popover, Dropdown, Option, Select,
-  PopoverTrigger,
-  PopoverSurface,
-  Label, Menu, MenuTrigger, MenuList, MenuItem, MenuPopover, Text,
-  Accordion, AccordionHeader, AccordionPanel, AccordionItem, ToggleButton, RadioGroup, Radio,
-  TableBody,
-  TableCell,
-  TableRow,
-  Table,
-  TableHeader,
-  TableHeaderCell,
-  TableCellLayout,
-  Switch,
-  Checkbox,
-  Tooltip
+  Button, Toolbar, ToolbarButton, Caption1, Body1, ToolbarDivider, Divider,
+  Popover, PopoverTrigger, PopoverSurface, Text, ToggleButton
 } from '@fluentui/react-components'
 import {
   FolderOpen24Regular, AlignSpaceFitVertical20Regular, AlignSpaceEvenlyVertical20Regular,
@@ -32,10 +18,6 @@ import EcgDisplay from './EcgDisplay'
 import Spo2Display from './Spo2Display'
 import Max86141ConfigPanel from './Max86141ConfigPanel'
 
-import { CustomOptions as Dropup } from './Dropup'
-import { DropCat } from './DropCat'
-
-import { Transition, CSSTransition } from 'react-transition-group'
 import AnimateHeight from 'react-animate-height'
 
 import { shell } from 'electron'
@@ -148,6 +130,16 @@ const initSpoOption = {
   }]
 }
 
+const abpLineDataProps = {
+  type: 'line',
+  lineStyle: { width: 0.5 },
+  showSymbol: false,
+  dimensions: ['xDim', 'yDim'],
+  encode: { x: 'xDim', y: 'yDim' },
+  data: new Uint32Array(0),
+  animation: false
+}
+
 const initAbpOption = {
   grid: {
     show: true,
@@ -225,14 +217,14 @@ const tempChartInitOption = {
 const chartOpt = (data) => ({ series: [{ data }] })
 
 const Spacer24 = () => (<div style={{ height: 24 }}></div>)
-const Spacer96 = () => (<div style={{ height: 96 }}></div>)
+// const Spacer96 = () => (<div style={{ height: 96 }}></div>)
 
 const worker = new Worker(new URL('../workers/magus-worker.js', import.meta.url))
 
-const MagusView = (props) => {
-  // const [worker, setWorker] = useState(null)
+let abpListInitialized = false
 
-  const [selectedTab, setSelectedTab] = useState('ECG')
+const MagusView = (props) => {
+  // const [selectedTab, setSelectedTab] = useState('ECG')
 
   const [ecgRecording, setEcgRecording] = useState(false)
   const [spoRecording, setSpoRecording] = useState(false)
@@ -265,19 +257,7 @@ const MagusView = (props) => {
 
   const [spoOutput, setSpoOutput] = useState({})
 
-  const [abpIr1, setAbpIr1] = useState(initAbpOption)
-  const [abpIr2, setAbpIr2] = useState(initAbpOption)
-  const [abpRed1, setAbpRed1] = useState(initAbpOption)
-  const [abpRed2, setAbpRed2] = useState(initAbpOption)
-  const [abpGreen1, setAbpGreen1] = useState(initAbpOption)
-  const [abpGreen2, setAbpGreen2] = useState(initAbpOption)
-
-  const [abpIr1f, setAbpIr1f] = useState(initAbpOption)
-  const [abpIr2f, setAbpIr2f] = useState(initAbpOption)
-  const [abpRed1f, setAbpRed1f] = useState(initAbpOption)
-  const [abpRed2f, setAbpRed2f] = useState(initAbpOption)
-  const [abpGreen1f, setAbpGreen1f] = useState(initAbpOption)
-  const [abpGreen2f, setAbpGreen2f] = useState(initAbpOption)
+  const [abpOrigs, setAbpOrigs] = useState([])
 
   const [abpConfigPanelHeight, setAbpConfigPanelHeight] = useState(0)
   const [abpConfigShow, setAbpConfigShow] = useState(false)
@@ -285,25 +265,18 @@ const MagusView = (props) => {
 
   const [tempChartOption, setTempChartOption] = useState(tempChartInitOption)
 
-  const [abpOrder, setApbOrder] = useState([
-    'PPG1-IR, Original',
-    'PPG2-IR, Original',
-    'PPG1-RED, Original',
-    'PPG2-RED, Original',
-    'PPG1-GREEN, Original',
-    'PPG2-GREEN, Original'
-  ])
+  const [abpOrder, setAbpOrder] = useState([])
 
   const abpReorder = (up, index) => {
     if (up) {
-      setApbOrder([
+      setAbpOrder([
         ...abpOrder.slice(0, index - 1),
         abpOrder[index],
         abpOrder[index - 1],
         ...abpOrder.slice(index + 1)
       ])
     } else {
-      setApbOrder([
+      setAbpOrder([
         ...abpOrder.slice(0, index),
         abpOrder[index + 1],
         abpOrder[index],
@@ -324,13 +297,7 @@ const MagusView = (props) => {
       }]
     }
 
-    setAbpIr1(opt)
-    setAbpIr2(opt)
-    setAbpRed1(opt)
-    setAbpRed2(opt)
-    setAbpGreen1(opt)
-    setAbpGreen2(opt)
-
+    setAbpOrigs(Object.keys(abpOrigs).reduce((obj, key) => ({ ...obj, [key]: opt }), {}))
     setAbpSamplesInChart(newSamplesInChart)
 
     worker.postMessage({ type: 'max86141-abp-samples-in-chart', samplesInChart: newSamplesInChart })
@@ -381,20 +348,23 @@ const MagusView = (props) => {
           setSpoIrDc(chartOpt(ppg1led1Dc))
           setSpoRedDc(chartOpt(ppg1led2Dc))
         } else if (brief.instanceId === 1) { // abp
-          const [ppg1led1, ppg2led1, ppg1led2, ppg2led2, ppg1led3, ppg2led3] = e.data.origs
-          const [ppg1led1f, ppg2led1f, ppg1led2f, ppg2led2f, ppg1led3f, ppg2led3f] = e.data.filts
-          setAbpIr1(chartOpt(ppg1led1))
-          setAbpIr1f(chartOpt(ppg1led1f))
-          setAbpIr2(chartOpt(ppg2led1))
-          setAbpIr2f(chartOpt(ppg2led1f))
-          setAbpRed1(chartOpt(ppg1led2))
-          setAbpRed1f(chartOpt(ppg1led2f))
-          setAbpRed2(chartOpt(ppg2led2))
-          setAbpRed2f(chartOpt(ppg2led2f))
-          setAbpGreen1(chartOpt(ppg1led3))
-          setAbpGreen1f(chartOpt(ppg1led3f))
-          setAbpGreen2(chartOpt(ppg2led3))
-          setAbpGreen2f(chartOpt(ppg2led3f))
+          const { tags, origs, filts, acs } = e.data
+
+          // console.log('acs', acs)
+
+          // first set of data is dropped
+          if (!abpListInitialized) {
+            setAbpOrder(e.data.tags)
+            // setAbpOrigs(tags.reduce((obj, tag, index) => ({ ...obj, [tag]: initAbpOption }), {}))
+            abpListInitialized = true
+          }
+
+          setAbpOrigs(tags.reduce((obj, tag, index) => ({
+            ...obj,
+            [tag]: Object.assign({}, initAbpOption, {
+              series: [Object.assign({}, abpLineDataProps, { data: origs[index] })]
+            })
+          }), {}))
         }
       } else if (brief.sensorId === 2) { // ads129x
         const { leadOff, ecgOrigData, ecgProcData, ecgNtchData, ecgNlhpData } = e.data
@@ -440,7 +410,7 @@ const MagusView = (props) => {
     }
   }, [])
 
-  const onTabSelect = (e, data) => setSelectedTab(data.value)
+  // const onTabSelect = (e, data) => setSelectedTab(data.value)
 
   return (
     <div style={{ display: 'flex' }}>
@@ -474,17 +444,17 @@ const MagusView = (props) => {
             <ToolbarButton onClick={() => shell.openExternal(path.join(process.cwd(), 'log'))} icon={<FolderOpen24Regular />} />
             <ToolbarDivider />
             <ToolbarButton
-                disabled={ecgChartHeight <= CHART_MIN_HEIGHT}
-                icon={<AlignSpaceEvenlyVertical20Regular />}
-                onClick={() => {
-                  setEcgChartHeight(ecgChartHeight - CHART_STEP_HEIGHT)
-                }} />
-              <ToolbarButton
-                disabled={ecgChartHeight >= CHART_MAX_HEIGHT}
-                icon={<AlignSpaceFitVertical20Regular />}
-                onClick={() => {
-                  setEcgChartHeight(ecgChartHeight + CHART_STEP_HEIGHT)
-                }} />
+              disabled={ecgChartHeight <= CHART_MIN_HEIGHT}
+              icon={<AlignSpaceEvenlyVertical20Regular />}
+              onClick={() => {
+                setEcgChartHeight(ecgChartHeight - CHART_STEP_HEIGHT)
+              }} />
+            <ToolbarButton
+              disabled={ecgChartHeight >= CHART_MAX_HEIGHT}
+              icon={<AlignSpaceFitVertical20Regular />}
+              onClick={() => {
+                setEcgChartHeight(ecgChartHeight + CHART_STEP_HEIGHT)
+              }} />
           </Toolbar>
         </div>
         <Spacer24 />
@@ -523,24 +493,24 @@ const MagusView = (props) => {
             <ToolbarButton onClick={() => shell.openExternal(path.join(process.cwd(), 'log'))} icon={<FolderOpen24Regular />} />
             <ToolbarDivider />
             <ToolbarButton
-                disabled={spoChartHeight <= CHART_MIN_HEIGHT}
-                icon={<AlignSpaceEvenlyVertical20Regular />}
-                onClick={() => {
-                  setSpoChartHeight(spoChartHeight - CHART_STEP_HEIGHT)
-                }} />
-              <ToolbarButton
-                disabled={spoChartHeight >= CHART_MAX_HEIGHT}
-                icon={<AlignSpaceFitVertical20Regular />}
-                onClick={() => {
-                  setSpoChartHeight(spoChartHeight + CHART_STEP_HEIGHT)
-                }} />
+              disabled={spoChartHeight <= CHART_MIN_HEIGHT}
+              icon={<AlignSpaceEvenlyVertical20Regular />}
+              onClick={() => {
+                setSpoChartHeight(spoChartHeight - CHART_STEP_HEIGHT)
+              }} />
+            <ToolbarButton
+              disabled={spoChartHeight >= CHART_MAX_HEIGHT}
+              icon={<AlignSpaceFitVertical20Regular />}
+              onClick={() => {
+                setSpoChartHeight(spoChartHeight + CHART_STEP_HEIGHT)
+              }} />
           </Toolbar>
         </div>
 
         <Spacer24 />
         <div style={{ display: 'flex' }}>
           <div style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'space-around' }}>
-          {/* <div style={{ flex: 1, minWidth: 0 }}> */}
+            {/* <div style={{ flex: 1, minWidth: 0 }}> */}
             <div style={{ width: '50%' }}>
               <Caption1 style={{ marginLeft: GRID_LEFT }}>IR - Original</Caption1>
               <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={spoIr} />
@@ -599,8 +569,8 @@ const MagusView = (props) => {
                     return (
                       <div key={name} style={{ display: 'flex', alignItems: 'center' }}>
                         <Body1 style={{ flex: 1, minWidth: 0, marginTop: 8, marginBottom: 8, marginRight: 32 }}>{name}</Body1>
-                        <Button icon={<ArrowSortUp24Regular />} disabled={index === 0} appearance="subtle" onClick={() => abpReorder(true, index)}/>
-                        <Button icon={<ArrowSortDown24Regular />} disabled={index === arr.length - 1} appearance="subtle" onClick={() => abpReorder(false, index)}/>
+                        <Button icon={<ArrowSortUp24Regular />} disabled={index === 0} appearance="subtle" onClick={() => abpReorder(true, index)} />
+                        <Button icon={<ArrowSortDown24Regular />} disabled={index === arr.length - 1} appearance="subtle" onClick={() => abpReorder(false, index)} />
                       </div>
                     )
                   })
@@ -613,17 +583,17 @@ const MagusView = (props) => {
             <ToolbarButton icon={<ZoomOut24Regular />} onClick={() => abpZoom(false)} disabled={abpSamplesInChart >= 16000} />
             <ToolbarDivider />
             <ToolbarButton
-                disabled={abpChartHeight <= CHART_MIN_HEIGHT}
-                icon={<AlignSpaceEvenlyVertical20Regular />}
-                onClick={() => {
-                  setAbpChartHeight(abpChartHeight - CHART_STEP_HEIGHT)
-                }} />
-              <ToolbarButton
-                disabled={abpChartHeight >= CHART_MAX_HEIGHT}
-                icon={<AlignSpaceFitVertical20Regular />}
-                onClick={() => {
-                  setAbpChartHeight(abpChartHeight + CHART_STEP_HEIGHT)
-                }} />
+              disabled={abpChartHeight <= CHART_MIN_HEIGHT}
+              icon={<AlignSpaceEvenlyVertical20Regular />}
+              onClick={() => {
+                setAbpChartHeight(abpChartHeight - CHART_STEP_HEIGHT)
+              }} />
+            <ToolbarButton
+              disabled={abpChartHeight >= CHART_MAX_HEIGHT}
+              icon={<AlignSpaceFitVertical20Regular />}
+              onClick={() => {
+                setAbpChartHeight(abpChartHeight + CHART_STEP_HEIGHT)
+              }} />
             <ToolbarDivider />
             <ToggleButton
               checked={abpConfigShow}
@@ -673,65 +643,50 @@ const MagusView = (props) => {
 
         <div style={{ display: 'flex' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            {/*
-            <div style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
-              <Caption1 style={{ marginLeft: GRID_LEFT }}>PPG1-IR, Original</Caption1>
-              <ReactECharts style={{ height: abpChartHeight, width: '100%' }} option={abpIr1} />
-            </div>
-            <div style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
-              <Caption1 style={{ marginLeft: GRID_LEFT }}>PPG2-IR, Original</Caption1>
-              <ReactECharts style={{ height: abpChartHeight, width: '100%' }} option={abpIr2} />
-            </div>
-            <div style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
-              <Caption1 style={{ marginLeft: GRID_LEFT }}>PPG1-RED, Original</Caption1>
-              <ReactECharts style={{ height: abpChartHeight, width: '100%' }} option={abpRed1} />
-            </div>
-            <div style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
-              <Caption1 style={{ marginLeft: GRID_LEFT }}>PPG2-RED, Original</Caption1>
-              <ReactECharts style={{ height: abpChartHeight, width: '100%' }} option={abpRed2} />
-            </div>
-            <div style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
-              <Caption1 style={{ marginLeft: GRID_LEFT }}>PPG1-GREEN, Original</Caption1>
-              <ReactECharts style={{ height: abpChartHeight, width: '100%' }} option={abpGreen1} />
-            </div>
-            <div style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
-              <Caption1 style={{ marginLeft: GRID_LEFT }}>PPG2-GREEN, Original</Caption1>
-              <ReactECharts style={{ height: abpChartHeight, width: '100%' }} option={abpGreen2} />
-              </div> */}
-
             {
-              abpOrder.map(name => {
-                let option
-                switch (name) {
-                  case 'PPG1-IR, Original':
-                    option = abpIr1
-                    break
-                  case 'PPG2-IR, Original':
-                    option = abpIr2
-                    break
-                  case 'PPG1-RED, Original':
-                    option = abpRed1
-                    break
-                  case 'PPG2-RED, Original':
-                    option = abpRed2
-                    break
-                  case 'PPG1-GREEN, Original':
-                    option = abpGreen1
-                    break
-                  case 'PPG2-GREEN, Original':
-                    option = abpGreen2
-                    break
-                  default:
-                    break
-                }
-                return (
+              abpOrder.map(name => (
                   <div key={name} style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
                     <Caption1 style={{ marginLeft: GRID_LEFT }}>{name}</Caption1>
-                    <ReactECharts style={{ height: abpChartHeight, width: '100%' }} option={option} />
+                    <ReactECharts style={{ height: abpChartHeight }} option={{
+                      ...abpOrigs[name],
+                      xAxis: {
+                        max: abpSamplesInChart,
+                        splitNumber: abpSamplesInChart / 50 + 1,
+                        type: 'value',
+                        min: 0,
+                        // max: ABP_DEFAULT_SAMPLES_IN_CHART,
+                        // splitNumber: ABP_DEFAULT_SAMPLES_IN_CHART / 50 + 1,
+                        axisLabel: { show: false },
+                        axisTick: { show: false },
+                        axisLine: { show: false },
+                        animation: false
+                      },
+                    }} />
                   </div>
-                )
-              })
+              ))
             }
+            {/*
+            <div key='abp-original-all' style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
+              <Caption1 style={{ marginLeft: GRID_LEFT }}>ABP (original)</Caption1>
+              <ReactECharts style={{ height: abpChartHeight }} option={Object.assign({}, initAbpOption, {
+                xAxis: {
+                  max: abpSamplesInChart,
+                  splitNumber: abpSamplesInChart / 50 + 1,
+                  type: 'value',
+                  min: 0,
+                  // max: ABP_DEFAULT_SAMPLES_IN_CHART,
+                  // splitNumber: ABP_DEFAULT_SAMPLES_IN_CHART / 50 + 1,
+                  axisLabel: { show: false },
+                  axisTick: { show: false },
+                  axisLine: { show: false },
+                  animation: false
+                },
+
+                series: Object.keys(abpOrigs).map(key => {
+                  return { ...abpOrigs[key].series[0], name: key }
+                }, [])
+              })} />
+            </div> */}
           </div>
           <div style={{ width: DISPLAY_COLUMN_WIDTH }} />
         </div>
@@ -755,17 +710,17 @@ const MagusView = (props) => {
             <ToolbarButton onClick={() => shell.openExternal(path.join(process.cwd(), 'log'))} icon={<FolderOpen24Regular />} />
             <ToolbarDivider />
             <ToolbarButton
-                disabled={tempChartHeight <= CHART_MIN_HEIGHT}
-                icon={<AlignSpaceEvenlyVertical20Regular />}
-                onClick={() => {
-                  setTempChartHeight(tempChartHeight - CHART_STEP_HEIGHT)
-                }} />
-              <ToolbarButton
-                disabled={tempChartHeight >= CHART_MAX_HEIGHT}
-                icon={<AlignSpaceFitVertical20Regular />}
-                onClick={() => {
-                  setTempChartHeight(tempChartHeight + CHART_STEP_HEIGHT)
-                }} />
+              disabled={tempChartHeight <= CHART_MIN_HEIGHT}
+              icon={<AlignSpaceEvenlyVertical20Regular />}
+              onClick={() => {
+                setTempChartHeight(tempChartHeight - CHART_STEP_HEIGHT)
+              }} />
+            <ToolbarButton
+              disabled={tempChartHeight >= CHART_MAX_HEIGHT}
+              icon={<AlignSpaceFitVertical20Regular />}
+              onClick={() => {
+                setTempChartHeight(tempChartHeight + CHART_STEP_HEIGHT)
+              }} />
           </Toolbar>
         </div>
 

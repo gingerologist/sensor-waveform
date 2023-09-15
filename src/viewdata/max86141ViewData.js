@@ -54,9 +54,10 @@ const fromTagName = name => {
 }
 
 class Transform {
-  constructor (name, samplesInChart) {
+  constructor (name, samplingRate, samplesInChart) {
     this.name = name
     this.tag = fromTagName(name)
+    this.samplingRate = samplingRate
     this.reset(samplesInChart)
   }
 
@@ -75,9 +76,9 @@ class Transform {
     // First, a Butterworth low-pass filter with a cutoff frequency of 10 Hz,
     // attenuation of 50 dB and 170 th order removes the higher
     // frequencies from the signals
-    this.firLowpass1 = new Fili.FirFilter(firCalc.lowpass({
-      order: 170,
-      Fs: 50,
+    this.firLowpass1 = new Fili.FirFilter(firCalc.lowpass({ // lowpass
+      order: 170, // 170,
+      Fs: this.samplingRate,
       Fc: 10,
       Att: 50 // don't know whether this is used at all.
     }))
@@ -89,7 +90,7 @@ class Transform {
     this.acBandpass = new Fili.IirFilter(iirCalc.bandpass({
       order: 4,
       characteristic: 'butterworth',
-      Fs: 50,
+      Fs: this.samplingRate,
       Fc: 2.585, // (0.67 + 4.5) / 2
       BW: 3.83 // (4.5 - 0.67)
     }))
@@ -99,7 +100,7 @@ class Transform {
     this.dcLowpass = new Fili.IirFilter(iirCalc.lowpass({
       order: 6,
       characteristic: 'butterworth',
-      Fs: 50,
+      Fs: this.samplingRate,
       Fc: 0.67
     }))
   }
@@ -286,9 +287,10 @@ class Max86141ViewData {
   // }
   build (parsed) {
     const { brief, samples, reg10, reg20 } = parsed
+    // console.log(`samplingRate: ${brief.samplingRate}`)
     if (!this.transforms) {
       const taglist = samples.reduce((list, sample) => list.includes(sample.name) ? list : [...list, sample.name], [])
-      this.transforms = taglist.map(name => new Transform(name, this.samplesInChart))
+      this.transforms = taglist.map(name => new Transform(name, brief.samplingRate, this.samplesInChart))
     }
 
     const viewData = { brief, filed: [], origs: [], filts: [], acs: [], dcs: [], acRms: [], dcAvg: [], ratio: [], tags: this.transforms.map(t => t.name) }
