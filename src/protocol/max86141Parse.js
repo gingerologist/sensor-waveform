@@ -218,6 +218,11 @@ const parseDetail = (data, tlv) => {
        */
       break
     }
+
+    case 0xf5: {
+      data.rougu = tlv.value
+      break
+    }
     default:
       break
   }

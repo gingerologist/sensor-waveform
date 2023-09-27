@@ -286,8 +286,10 @@ class Max86141ViewData {
   //   return viewdata
   // }
   build (parsed) {
-    const { brief, samples, reg10, reg20 } = parsed
+    const { brief, samples, reg10, reg20, rougu } = parsed
+
     // console.log(`samplingRate: ${brief.samplingRate}`)
+    // create transforms by data tags
     if (!this.transforms) {
       const taglist = samples.reduce((list, sample) => list.includes(sample.name) ? list : [...list, sample.name], [])
       this.transforms = taglist.map(name => new Transform(name, brief.samplingRate, this.samplesInChart))
@@ -309,6 +311,51 @@ class Max86141ViewData {
       viewData.dcAvg.push(dcAvg)
       viewData.ratio.push(ratio)
     })
+
+    if (brief.instanceId === 0 && rougu) {
+      const tags = this.transforms.map(t => t.tag)
+      if (tags.length === 2 && tags[0] === 1 && tags[1] === 2) {
+        /** typedef struct __attribute__((packed)) max86141_rougu_data
+            {
+                int ir;
+                int rd;
+                int irdc;
+                int rddc;
+                int irFilt;
+                int rdFilt;
+                int spo;
+                int hr;
+                // int hrpeak;
+                // unsigned int rsvd;
+            } max86141_rougu_data_t; */
+
+        // assume 30 pairs
+        if (rougu.length === 960) {
+          const ir = []
+          const rd = []
+          const irdc = []
+          const rddc = []
+          const irFilt = []
+          const rdFilt = []
+          const spo = []
+          const hr = []
+          for (let i = 0; i < 30; i++) {
+            ir.push(rougu.readInt32LE(i * 32 + 0))
+            rd.push(rougu.readInt32LE(i * 32 + 4))
+            irdc.push(rougu.readInt32LE(i * 32 + 8))
+            rddc.push(rougu.readInt32LE(i * 32 + 12))
+            irFilt.push(rougu.readInt32LE(i * 32 + 16))
+            rdFilt.push(rougu.readInt32LE(i * 32 + 20))
+            spo.push(rougu.readInt32LE(i * 32 + 24))
+            hr.push(rougu.readInt32LE(i * 32 + 28))
+          }
+
+          viewData.rougu = { ir, rd, irdc, rddc, irFilt, rdFilt, spo, hr }
+        } else {
+          console.log(`warning: rougu data length: ${rougu.length}, not 960`)
+        }
+      }
+    }
 
     // const reg0d = Buffer.alloc(1)
     // if (Object.prototype.hasOwnProperty.call(brief, 'ppg1') &&

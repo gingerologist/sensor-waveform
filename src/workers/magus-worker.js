@@ -100,6 +100,7 @@ const startAsync = async () => {
 
   let ads129xLog = null
   let max86141SpoLog = null
+  let max86141SpoRouguLog = null
 
   let max86141AbpLog = null
   let max86141AbpStartUs = 0
@@ -120,6 +121,7 @@ const startAsync = async () => {
   const max86141SpoHeadline = makeHeadline(['IR', 'RED'])
   // const max86141AbpHeadline = makeHeadline(['PPG1-IR', 'PPG2-IR', 'PPG1-RED', 'PPG2-RED', 'PPG1-GREEN', 'PPG2-GREEN'])
   // let max86141AbpHeadline
+  const max86141SpoRouguHeadline = makeHeadline(['IR', 'IR Filtered', 'Red', 'Red Filtered', 'SpO2', 'Heart Rate'])
 
   let m601zHeadlineNames = []
   const m601zHeadline = () => makeHeadline(m601zHeadlineNames)
@@ -149,6 +151,14 @@ const startAsync = async () => {
       max86141SpoLog = fs.createWriteStream(filepath)
       max86141SpoLog.write(max86141SpoHeadline)
     }
+
+    if (max86141SpoRouguLog === null) {
+      const filename = `spodata-rougu-${timestamp()}.csv`
+      const filepath = path.join(process.cwd(), 'log', filename)
+      max86141SpoRouguLog = fs.createWriteStream(filepath)
+      max86141SpoRouguLog.write(max86141SpoRouguHeadline)
+    }
+
     self.postMessage({ oob: 'max86141-spo-recording-started' })
   }
 
@@ -156,6 +166,11 @@ const startAsync = async () => {
     if (max86141SpoLog) {
       max86141SpoLog.end()
       max86141SpoLog = null
+    }
+
+    if (max86141SpoRouguLog) {
+      max86141SpoRouguLog.end()
+      max86141SpoRouguLog = null
     }
     self.postMessage({ oob: 'max86141-spo-recording-stopped' })
   }
@@ -253,7 +268,7 @@ const startAsync = async () => {
         if (!parted) continue
 
         if (parted.packetStart) {
-          console.log('packetStart not zero')
+          console.log(`packetStart ${parted.packetStart} not zero`)
         }
         input = input.subarray(parted.packetEnd)
 
@@ -290,16 +305,15 @@ const startAsync = async () => {
           case 0x0001: {
             const parsed = max86141Parse(parted.tlvs)
 
-            if (parsed.brief.instanceId === 0) {
+            if (parsed.brief.instanceId === 0) { // spo
               const viewData = spoMax86141ViewData.build(parsed)
-              // console.log(viewData)
-              const { brief, filed, origs, filts, acs, dcs, acRms, dcAvg, ratio } = viewData
+              const { brief, filed, origs, filts, acs, dcs, acRms, dcAvg, ratio, rougu } = viewData
               // const r = ratio[1] / ratio[0]
               // const a = -16.666666
               // const b = 8.333333
               // const c = 100
               // console.log(a * r * r + b * r + c)
-              self.postMessage({ brief, origs, filts, acs, dcs, acRms, dcAvg, ratio },
+              self.postMessage({ brief, origs, filts, acs, dcs, acRms, dcAvg, ratio, rougu },
                 [...origs.map(x => x.buffer), ...filts.map(x => x.buffer), ...acs.map(x => x.buffer), ...dcs.map(x => x.buffer)])
 
               if (max86141SpoLog) {
@@ -308,7 +322,19 @@ const startAsync = async () => {
                   max86141SpoLog.write(`${filed[0][i]}, ${filed[1][i]}\r\n`)
                 }
               }
-            } else if (parsed.brief.instanceId === 1) {
+
+              if (max86141SpoRouguLog && rougu) {
+                for (let i = 0; i < rougu.ir.length; i++) {
+                  const ir = rougu.ir[i]
+                  const irFilt = rougu.irFilt[i]
+                  const rd = rougu.rd[i]
+                  const rdFilt = rougu.rdFilt[i]
+                  const spo = rougu.spo[i]
+                  const hr = rougu.hr[i]
+                  max86141SpoRouguLog.write(`${ir}, ${irFilt}, ${rd}, ${rdFilt}, ${spo}, ${hr}\r\n`)
+                }
+              }
+            } else if (parsed.brief.instanceId === 1) { // abp
               const viewData = abpMax86141ViewData.build(parsed)
               const { brief, filed, origs, filts, acs, tags } = viewData
               self.postMessage({ brief, origs, filts, acs, tags },

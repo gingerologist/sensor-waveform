@@ -16,6 +16,7 @@ import ReactECharts from 'echarts-for-react'
 import StopWatch from './StopWatch'
 import EcgDisplay from './EcgDisplay'
 import Spo2Display from './Spo2Display'
+import Spo2RouguDisplay from './Spo2RouguDisplay'
 import Max86141ConfigPanel from './Max86141ConfigPanel'
 
 import AnimateHeight from 'react-animate-height'
@@ -129,6 +130,74 @@ const initSpoOption = {
     animation: false
   }]
 }
+
+const makeRouguSpoChartOpt = (data, append) => {
+  const start = data.length === 0 ? 0 : data[data.length - 1][0] + 1
+
+  if (append) {
+    append.reduce((acc, x, i) => {
+      acc.push([start + i, x])
+      return acc
+    }, data)
+
+    while (data.length > 300) {
+      data.shift()
+    }
+  }
+
+  const xmin = data.length === 0 ? 0 : data[0][0]
+
+  return {
+    grid: {
+      show: true,
+      top: 8,
+      bottom: 16,
+      left: GRID_LEFT,
+      right: GRID_RIGHT
+    },
+    xAxis: {
+      type: 'value',
+      min: xmin,
+      max: xmin + 300,
+      splitNumber: 600 / 25 + 1,
+      axisLabel: { show: false },
+      axisTick: { show: false },
+      axisLine: { show: false },
+      animation: false
+    },
+    yAxis: {
+      type: 'value',
+      scale: true,
+      // axisLabel: { show: false },
+      axisTick: { show: false },
+      axisLine: { show: false },
+      animation: false
+    },
+
+    // https://jsfiddle.net/aqjxko1e/
+    series: [{
+      type: 'line',
+      lineStyle: { width: 0.5 },
+      showSymbol: false,
+      dimensions: ['xDim', 'yDim'],
+      encode: { x: 'xDim', y: 'yDim' },
+      data,
+      animation: false
+    }],
+
+    bump: start
+  }
+}
+
+const rouguSpoIrData = []
+const rouguSpoRdData = []
+const rouguSpoIrFiltData = []
+const rouguSpoRdFiltData = []
+
+const initRouguSpoIrChartOpt = makeRouguSpoChartOpt(rouguSpoIrData)
+const initRouguSpoRdChartOpt = makeRouguSpoChartOpt(rouguSpoRdData)
+const initRouguSpoIrFiltChartOpt = makeRouguSpoChartOpt(rouguSpoIrFiltData)
+const initRouguSpoRdFiltChartOpt = makeRouguSpoChartOpt(rouguSpoRdFiltData)
 
 const abpLineDataProps = {
   type: 'line',
@@ -257,6 +326,13 @@ const MagusView = (props) => {
 
   const [spoOutput, setSpoOutput] = useState({})
 
+  const [rouguSpoIr, setRouguSpoIr] = useState(initRouguSpoIrChartOpt)
+  const [rouguSpoRd, setRouguSpoRd] = useState(initRouguSpoRdChartOpt)
+  const [rouguSpoIrFilt, setRouguSpoIrFilt] = useState(initRouguSpoIrFiltChartOpt)
+  const [rouguSpoRdFilt, setRouguSpoRdFilt] = useState(initRouguSpoRdFiltChartOpt)
+  const [rouguSpo, setRouguSpo] = useState(0)
+  const [rouguHr, setRouguHr] = useState(0)
+
   const [abpOrigs, setAbpOrigs] = useState([])
 
   const [abpConfigPanelHeight, setAbpConfigPanelHeight] = useState(0)
@@ -331,7 +407,7 @@ const MagusView = (props) => {
 
       if (brief.sensorId === 1) { // max86141
         if (brief.instanceId === 0) { // spo2
-          const { acRms, dcAvg, ratio } = e.data
+          const { acRms, dcAvg, ratio, rougu } = e.data
           setSpoOutput({ acRms, dcAvg, ratio })
 
           const [ppg1led1, ppg1led2] = e.data.origs
@@ -347,6 +423,15 @@ const MagusView = (props) => {
           setSpoRedAc(chartOpt(ppg1led2Ac))
           setSpoIrDc(chartOpt(ppg1led1Dc))
           setSpoRedDc(chartOpt(ppg1led2Dc))
+
+          if (rougu) {
+            setRouguSpoIr(makeRouguSpoChartOpt(rouguSpoIrData, rougu.ir))
+            setRouguSpoRd(makeRouguSpoChartOpt(rouguSpoRdData, rougu.rd))
+            setRouguSpoIrFilt(makeRouguSpoChartOpt(rouguSpoIrFiltData, rougu.irFilt))
+            setRouguSpoRdFilt(makeRouguSpoChartOpt(rouguSpoRdFiltData, rougu.rdFilt))
+            setRouguSpo(rougu.spo.reduce((sum, v) => sum + v, 0) / rougu.spo.length)
+            setRouguHr(rougu.hr.reduce((sum, v) => sum + v, 0) / rougu.hr.length)
+          }
         } else if (brief.instanceId === 1) { // abp
           const { tags, origs, filts, acs } = e.data
 
@@ -428,6 +513,8 @@ const MagusView = (props) => {
 
       <div style={{ flex: 1, minWidth: 0, height: '100vh', overflowY: 'scroll', overflowX: 'hidden' }}>
         <h1 style={{ marginLeft: GRID_LEFT, marginTop: 48 }}>ECG</h1>
+
+        {/* ECG Toolbar begin */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginRight: DISPLAY_COLUMN_WIDTH }}>
           <Toolbar style={{ backgroundColor: tokens.colorNeutralBackground3, borderRadius: 8 }}>
             <StopWatch
@@ -457,7 +544,11 @@ const MagusView = (props) => {
               }} />
           </Toolbar>
         </div>
+        {/* ECG Toolbar End */}
+
         <Spacer24 />
+
+        {/* ECG Chart Begin */}
         <div style={{ display: 'flex' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <Caption1 style={{ marginLeft: GRID_LEFT }}>Original</Caption1>
@@ -473,10 +564,13 @@ const MagusView = (props) => {
             <EcgDisplay hr={heartRate} la={in2pOff} ra={in2nOff} />
           </div>
         </div>
+        {/* ECG Chart End */}
 
         <Divider style={{ marginTop: 48, marginBottom: 48 }} />
 
         <h1 style={{ marginLeft: GRID_LEFT }}>SPO2</h1>
+
+        {/* SPO2 Toolbar Begin */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginRight: DISPLAY_COLUMN_WIDTH }}>
           <Toolbar style={{ backgroundColor: tokens.colorNeutralBackground3, borderRadius: 8 }}>
             <StopWatch
@@ -506,11 +600,13 @@ const MagusView = (props) => {
               }} />
           </Toolbar>
         </div>
+        {/* SPO2 Toolbar End */}
 
         <Spacer24 />
+
+        {/* SPO2 Chart Begin */}
         <div style={{ display: 'flex' }}>
           <div style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'space-around' }}>
-            {/* <div style={{ flex: 1, minWidth: 0 }}> */}
             <div style={{ width: '50%' }}>
               <Caption1 style={{ marginLeft: GRID_LEFT }}>IR - Original</Caption1>
               <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={spoIr} />
@@ -532,11 +628,44 @@ const MagusView = (props) => {
               <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={spoRedDc} />
             </div>
           </div>
+
           <div style={{ width: DISPLAY_WIDTH, marginTop: 27, marginLeft: DISPLAY_MARGIN_LEFT, marginRight: DISPLAY_MARGIN_RIGHT }}>
             <Spo2Display {...spoOutput} />
           </div>
           {/* <div style={{ width: DISPLAY_COLUMN_WIDTH }} /> */}
         </div>
+        {/* SPO2 Chart End */}
+
+        {/* <Divider style={{ marginTop: 48, marginBottom: 48 }} /> */}
+
+        <h3 style={{ marginLeft: GRID_LEFT, color: 'gray' }}>ROUGU</h3>
+        {/* SPO2 ROUGU Toolbar Begin */}
+        <div style={{ display: 'flex' }}>
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'space-around' }}>
+            <div style={{ width: '50%' }}>
+              <Caption1 style={{ marginLeft: GRID_LEFT }}>IR - Original</Caption1>
+              <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={rouguSpoIr} />
+              <Caption1 style={{ marginLeft: GRID_LEFT }}>IR - Filtered</Caption1>
+              <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={rouguSpoIrFilt} />
+            </div>
+            <div style={{ width: '50%' }}>
+              <Caption1 style={{ marginLeft: GRID_LEFT }}>Red - Original</Caption1>
+              <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={rouguSpoRd} />
+              <Caption1 style={{ marginLeft: GRID_LEFT }}>Red - Filtered</Caption1>
+              <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={rouguSpoRdFilt} />
+            </div>
+          </div>
+          <div style={{ width: DISPLAY_WIDTH, marginTop: 27, marginLeft: DISPLAY_MARGIN_LEFT, marginRight: DISPLAY_MARGIN_RIGHT }}>
+            <Spo2RouguDisplay spo={rouguSpo} hr={rouguHr} />
+          </div>
+          {/* <div style={{ width: DISPLAY_COLUMN_WIDTH }} /> */}
+        </div>
+        {/* SPO2 ROUGU Toolbar End */}
+
+        <Spacer24 />
+
+        {/* SPO2 ROUGU Chart Begin */}
+        {/* SPO2 ROUGU Chart End */}
 
         <Divider style={{ marginTop: 48, marginBottom: 48 }} />
 
@@ -660,7 +789,7 @@ const MagusView = (props) => {
                         axisTick: { show: false },
                         axisLine: { show: false },
                         animation: false
-                      },
+                      }
                     }} />
                   </div>
               ))

@@ -55,8 +55,17 @@ const peekBrief = tlv => {
  * @param {Buffer} input
  * @returns
  */
+
+let count = 0
+const debug = false
+
 export const sensparse = input => {
+  count++
   const packetStart = input.indexOf(token)
+
+  if (debug && packetStart !== -1) {
+    console.log(`[debug ${count}] packetStart: ${packetStart}`)
+  }
 
   if (packetStart < 0) return
 
@@ -65,6 +74,10 @@ export const sensparse = input => {
 
   const payloadLen = input.readInt16LE(10)
   if (input.length < 14 + payloadLen) return
+
+  if (debug) {
+    console.log(`[debug ${count}] payloadLen: ${payloadLen}`)
+  }
 
   const crcStart = PKT_PREAMBLE_LEN + PKT_TYPE_LEN + PKT_LENGTH_LEN + payloadLen
   const packetEnd = crcStart + PKT_CRC_LEN
