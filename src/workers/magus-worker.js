@@ -20,7 +20,7 @@ import createAds129xViewData from '../viewdata/ads129xViewData.js'
 
 import timestamp from '../lib/timestamp.js'
 import createMax86141ViewData from '../viewdata/max86141ViewData.js'
-///// import createMax86141Config from '../protocol/max86141Config.js'
+// import createMax86141Config from '../protocol/max86141Config.js'
 
 import createM601zViewData from '../viewdata/m601zViewData.js'
 
@@ -55,6 +55,24 @@ const readSamplingRate = reg12 => {
   return freq / oversamples
 }
 
+// return true if 
+const checkComboSampleTags = samples => {
+  if (!Array.isArray(samples)) return false
+  for (let i = 0; i < 60; i++) {
+    const j = i % 4
+    if (j === 0) {
+      if (samples[i].tag !== 1) return false
+    } else if (j === 1) {
+      if (samples[i].tag !== 7) return false
+    } else if (j === 2) {
+      if (samples[i].tag !== 2) return false
+    } else {
+      if (samples[i].tag !== 8) return false
+    }
+  }
+  return true
+}
+
 // prepare log folder
 const logDir = path.join(process.cwd(), 'log')
 fs.mkdir(logDir, err => console.log(err))
@@ -84,6 +102,12 @@ const startAsync = async () => {
     samplesInChart: 1000,
     clearAhead: 30,
     taglist: ['PPG1_LED1', 'PPG2_LED1', 'PPG1_LED2', 'PPG2_LED2', 'PPG1_LED3', 'PPG2_LED3']
+  })
+
+  const comboMax86141ViewData = createMax86141ViewData({
+    samplesInChart: 1024,
+    clearAhead: 128,
+    taglist: ['PPG1_LED1', 'PPG1_LED2', 'PPG2_LED1', 'PPG2_LED2']
   })
 
   const m601zViewData = createM601zViewData({
@@ -118,7 +142,7 @@ const startAsync = async () => {
     '50Hz notch, LPF, and HPF'
   ])
 
-  const max86141SpoHeadline = makeHeadline(['IR', 'RED'])
+  const max86141SpoHeadline = makeHeadline(['IR1', 'IR2', 'RED1', 'RED2 (no use)'])
   // const max86141AbpHeadline = makeHeadline(['PPG1-IR', 'PPG2-IR', 'PPG1-RED', 'PPG2-RED', 'PPG1-GREEN', 'PPG2-GREEN'])
   // let max86141AbpHeadline
   const max86141SpoRouguHeadline = makeHeadline(['IR', 'IR Filtered', 'Red', 'Red Filtered', 'SpO2', 'Heart Rate'])
@@ -359,6 +383,30 @@ const startAsync = async () => {
                 }
 
                 max86141AbpCount++
+              }
+            } else if (parsed.brief.instanceId === 128) { // combo
+              const viewData = comboMax86141ViewData.build(parsed)
+
+              const { brief, filed, origs, filts, acs, dcs, acRms, dcAvg, ratio } = viewData
+              self.postMessage({ brief, origs, filts, acs, dcs, acRms, dcAvg, ratio },
+                [...origs.map(x => x.buffer), ...filts.map(x => x.buffer), ...acs.map(x => x.buffer), ...dcs.map(x => x.buffer)])
+
+              const { samples } = parsed
+              /** sample{ tag, name, val } */
+
+              if (max86141SpoLog) {
+                if (parsed.samples[0].tag === 1) {
+                  for (let i = 0; i < samples.length / 4; i++) {
+                    const ir1 = samples[i * 4 + 0].val
+                    const ir2 = samples[i * 4 + 1].val
+                    const rd1 = samples[i * 4 + 2].val
+                    const rd2 = samples[i * 4 + 3].val
+
+                    max86141SpoLog.write(`${ir1}, ${ir2}, ${rd1}, ${rd2}\r\n`)
+                  }
+                } else {
+                  max86141SpoLog.write('bad data frame, data tags not starting from 1 (PPG1_LEDC1)')
+                }
               }
             }
             break
