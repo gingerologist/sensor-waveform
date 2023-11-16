@@ -103,8 +103,8 @@ const initSpoOption = {
   xAxis: {
     type: 'value',
     min: 0,
-    max: 1024,
-    splitNumber: 2048 / 25 + 1,
+    max: 300,
+    splitNumber: 600 / 25 + 1,
     axisLabel: { show: false },
     axisTick: { show: false },
     axisLine: { show: false },
@@ -406,7 +406,7 @@ const MagusView = (props) => {
       const { brief } = e.data
 
       if (brief.sensorId === 1) { // max86141
-        if (brief.instanceId === 0 || brief.instanceId === 128) { // spo2
+        if (brief.instanceId === 0) { // spo2
           const { acRms, dcAvg, ratio, rougu } = e.data
           setSpoOutput({ acRms, dcAvg, ratio })
 

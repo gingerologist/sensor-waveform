@@ -55,22 +55,8 @@ const readSamplingRate = reg12 => {
   return freq / oversamples
 }
 
-// return true if 
-const checkComboSampleTags = samples => {
-  if (!Array.isArray(samples)) return false
-  for (let i = 0; i < 60; i++) {
-    const j = i % 4
-    if (j === 0) {
-      if (samples[i].tag !== 1) return false
-    } else if (j === 1) {
-      if (samples[i].tag !== 7) return false
-    } else if (j === 2) {
-      if (samples[i].tag !== 2) return false
-    } else {
-      if (samples[i].tag !== 8) return false
-    }
-  }
-  return true
+let spoParsed = {
+  samples: []
 }
 
 // prepare log folder
@@ -142,9 +128,9 @@ const startAsync = async () => {
     '50Hz notch, LPF, and HPF'
   ])
 
-  const max86141SpoHeadline = makeHeadline(['IR1', 'IR2', 'RED1', 'RED2 (no use)'])
-  // const max86141AbpHeadline = makeHeadline(['PPG1-IR', 'PPG2-IR', 'PPG1-RED', 'PPG2-RED', 'PPG1-GREEN', 'PPG2-GREEN'])
-  // let max86141AbpHeadline
+  const max86141SpoHeadline = makeHeadline(['PPG1-LEDC1 (41-sample avg)', 'PPG1_LEDC2 (41-sample avg)'])
+  const max86141AbpHeadline = makeHeadline(['PPG1-LEDC1', 'PPG2-LEDC1', 'PPG1-LEDC2', 'PPG2-LEDC2'])
+  
   const max86141SpoRouguHeadline = makeHeadline(['IR', 'IR Filtered', 'Red', 'Red Filtered', 'SpO2', 'Heart Rate'])
 
   let m601zHeadlineNames = []
@@ -207,7 +193,7 @@ const startAsync = async () => {
 
       // reset count
       max86141AbpCount = 0
-      // max86141AbpLog.write(max86141AbpHeadline)
+      max86141AbpLog.write(max86141AbpHeadline)
     }
     self.postMessage({ oob: 'max86141-abp-recording-started' })
   }
@@ -385,14 +371,84 @@ const startAsync = async () => {
                 max86141AbpCount++
               }
             } else if (parsed.brief.instanceId === 128) { // combo
+              if (spoParsed.samples.length === 0) {
+                spoParsed.brief = { ...parsed.brief }
+                spoParsed.brief.instanceId = 0
+                spoParsed.reg10 = parsed.reg10
+                spoParsed.reg20 = parsed.reg20
+              }
+
+              const ppg1Led1 = parsed.samples.filter(x => x.tag === 1).map(x => x.val)
+              const ppg1Led2 = parsed.samples.filter(x => x.tag === 2).map(x => x.val)
+
+              spoParsed.samples.push({
+                tag: 1,
+                name: 'PPG1_LED1',
+                val: ppg1Led1.reduce((acc, x) => acc + x, 0) / ppg1Led1.length
+              })
+
+              spoParsed.samples.push({
+                tag: 2,
+                name: 'PPG1_LED2',
+                val: ppg1Led2.reduce((acc, x) => acc + x, 0) / ppg1Led2.length
+              })
+
+              if (spoParsed.samples.length === 60) {
+                const viewData = spoMax86141ViewData.build(spoParsed)
+                const { brief, filed, origs, filts, acs, dcs, acRms, dcAvg, ratio, rougu } = viewData
+                // const r = ratio[1] / ratio[0]
+                // const a = -16.666666
+                // const b = 8.333333
+                // const c = 100
+                // console.log(a * r * r + b * r + c)
+                self.postMessage({ brief, origs, filts, acs, dcs, acRms, dcAvg, ratio, rougu },
+                  [...origs.map(x => x.buffer), ...filts.map(x => x.buffer), ...acs.map(x => x.buffer), ...dcs.map(x => x.buffer)])
+
+                if (max86141SpoLog) {
+                  // console.log('spo filed', filed[0][0], filed[1][0])
+                  for (let i = 0; i < filed[0].length; i++) {
+                    max86141SpoLog.write(`${filed[0][i]}, ${filed[1][i]}\r\n`)
+                  }
+                }
+                spoParsed = { samples: [] }
+              }
+
+              const abpParsed = {
+                brief: { ...parsed.brief, instanceId: 1 },
+                reg10: parsed.reg10,
+                reg20: parsed.reg20,
+                samples: parsed.samples.filter(x => x.tag === 1 || x.tag === 7)
+              }
+
+              const viewData = abpMax86141ViewData.build(abpParsed)
+              const { brief, filed, origs, filts, acs, tags } = viewData
+              self.postMessage({ brief, origs, filts, acs, tags },
+                [...origs.map(x => x.buffer), ...filts.map(x => x.buffer), ...acs.map(x => x.buffer)])
+
+              if (max86141AbpLog) {
+                for (let i = 0; i < parsed.samples.length / 4; i++) {
+                  const ir1 = parsed.samples[i * 4 + 0].val
+                  const ir2 = parsed.samples[i * 4 + 1].val
+                  const rd1 = parsed.samples[i * 4 + 2].val
+                  const rd2 = parsed.samples[i * 4 + 3].val
+                  max86141AbpLog.write(`${ir1}, ${ir2}, ${rd1}, ${rd2}\r\n`)
+                }
+              }
+
+              /*
+              const { samples } = parsed
+              for (let i = 0; i < samples.length / 4; i++) {
+                if (samples[i * 4].tag !== 1 || samples[i * 4 + 1].tag !== 7 || samples[i * 4 + 2].tag !== 2 || samples[i * 4 + 3].tag !== 8) {
+                  console.log('bad samples', i, samples)
+                  break
+                }
+              }
+
               const viewData = comboMax86141ViewData.build(parsed)
 
               const { brief, filed, origs, filts, acs, dcs, acRms, dcAvg, ratio } = viewData
               self.postMessage({ brief, origs, filts, acs, dcs, acRms, dcAvg, ratio },
                 [...origs.map(x => x.buffer), ...filts.map(x => x.buffer), ...acs.map(x => x.buffer), ...dcs.map(x => x.buffer)])
-
-              const { samples } = parsed
-              /** sample{ tag, name, val } */
 
               if (max86141SpoLog) {
                 if (parsed.samples[0].tag === 1) {
@@ -405,9 +461,10 @@ const startAsync = async () => {
                     max86141SpoLog.write(`${ir1}, ${ir2}, ${rd1}, ${rd2}\r\n`)
                   }
                 } else {
+                  console.log('bad data frame, data tags not starting from 1 (PPG1_LEDC1)')
                   max86141SpoLog.write('bad data frame, data tags not starting from 1 (PPG1_LEDC1)')
                 }
-              }
+              } */
             }
             break
           }
