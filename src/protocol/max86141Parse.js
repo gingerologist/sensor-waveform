@@ -68,20 +68,20 @@ const parseBrief = tlv => {
   const sensorId = tlv.value.readUInt16LE(0)
   const instanceId = tlv.value.readUInt8(2)
   const version = tlv.value.readUInt8(3)
-  const ppg1 = tlv.value.readUInt8(4)
-  const ppg2 = tlv.value.readUInt8(5)
-  const ppfProx = tlv.value.readUInt8(6)
-  const lowPower = tlv.value.readUInt8(7)
-  const numOfSamples = tlv.value.readUInt8(8)
+  // const ppg1 = tlv.value.readUInt8(4)
+  // const ppg2 = tlv.value.readUInt8(5)
+  // const ppfProx = tlv.value.readUInt8(6)
+  // const lowPower = tlv.value.readUInt8(7)
+  // const numOfSamples = tlv.value.readUInt8(8)
   return {
     sensorId,
     version,
     instanceId,
-    ppg1,
-    ppg2,
-    ppfProx,
-    lowPower,
-    numOfSamples
+    // ppg1,
+    // ppg2,
+    // ppfProx,
+    // lowPower,
+    // numOfSamples
   }
 }
 
@@ -89,41 +89,41 @@ const parseBrief = tlv => {
 const tagName = tag => {
   switch (tag) {
     case 0x01:
-      return 'PPG1_LED1'
+      return 'PPG1_LEDC1'
     case 0x02:
-      return 'PPG1_LED2'
+      return 'PPG1_LEDC2'
     case 0x03:
-      return 'PPG1_LED3'
+      return 'PPG1_LEDC3'
     case 0x04:
-      return 'PPG1_LED4'
+      return 'PPG1_LEDC4'
     case 0x05:
-      return 'PPG1_LED5'
+      return 'PPG1_LEDC5'
     case 0x06:
-      return 'PPG1_LED6'
+      return 'PPG1_LEDC6'
     case 0x07:
-      return 'PPG2_LED1'
+      return 'PPG2_LEDC1'
     case 0x08:
-      return 'PPG2_LED2'
+      return 'PPG2_LEDC2'
     case 0x09:
-      return 'PPG2_LED3'
+      return 'PPG2_LEDC3'
     case 0x0a:
-      return 'PPG2_LED4'
+      return 'PPG2_LEDC4'
     case 0x0b:
-      return 'PPG2_LED5'
+      return 'PPG2_LEDC5'
     case 0x0c:
-      return 'PPG2_LED6'
+      return 'PPG2_LEDC6'
     case 0x0d:
-      return 'PPF1_LED1'
+      return 'PPF1_LEDC1'
     case 0x0e:
-      return 'PPF1_LED2'
+      return 'PPF1_LEDC2'
     case 0x0f:
-      return 'PPF1_LED3'
+      return 'PPF1_LEDC3'
     case 0x13:
-      return 'PPF2_LED1'
+      return 'PPF2_LEDC1'
     case 0x14:
-      return 'PPF2_LED2'
+      return 'PPF2_LEDC2'
     case 0x15:
-      return 'PPF2_LED3'
+      return 'PPF2_LEDC3'
     case 0x19:
       return 'PROX1'
     case 0x1a:
@@ -149,7 +149,8 @@ const parseDetail = (data, tlv) => {
   switch (tlv.type) {
     case 0x08: {
       const samples = []
-      for (let i = 0; i < data.brief.numOfSamples; i++) {
+      // for (let i = 0; i < data.brief.numOfSamples; i++) {
+      for (let i = 0; i < tlv.length / 3; i++) {
         samples.push(parseSample(tlv.value[3 * i], tlv.value[3 * i + 1], tlv.value[3 * i + 2]))
       }
       data.samples = samples

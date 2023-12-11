@@ -25,6 +25,7 @@ import { shell } from 'electron'
 
 import path from 'node:path'
 import process from 'node:process'
+import { IonPage } from '@ionic/react'
 
 const ECG_SAMPLE_COUNT = 2000
 
@@ -333,7 +334,118 @@ const MagusView = (props) => {
   const [rouguSpo, setRouguSpo] = useState(0)
   const [rouguHr, setRouguHr] = useState(0)
 
-  const [abpOrigs, setAbpOrigs] = useState([])
+  const [abpOrigs, setAbpOrigs] = useState(
+    {
+      PPG1_LEDC1: {
+        grid: {
+          show: true,
+          top: 8,
+          bottom: 16,
+          left: 96,
+          right: 16
+        },
+        xAxis: {
+          type: 'value',
+          min: 0,
+          max: 1000,
+          splitNumber: 21,
+          axisLabel: {
+            show: false
+          },
+          axisTick: {
+            show: false
+          },
+          axisLine: {
+            show: false
+          },
+          animation: false
+        },
+        yAxis: {
+          type: 'value',
+          scale: true,
+          axisTick: {
+            show: false
+          },
+          axisLine: {
+            show: false
+          },
+          animation: false
+        },
+        series: [
+          {
+            type: 'line',
+            lineStyle: {
+              width: 0.5
+            },
+            showSymbol: false,
+            dimensions: [
+              'xDim',
+              'yDim'
+            ],
+            encode: {
+              x: 'xDim',
+              y: 'yDim'
+            },
+            data: []
+          }
+        ]
+      },
+      PPG2_LEDC1: {
+        grid: {
+          show: true,
+          top: 8,
+          bottom: 16,
+          left: 96,
+          right: 16
+        },
+        xAxis: {
+          type: 'value',
+          min: 0,
+          max: 1000,
+          splitNumber: 21,
+          axisLabel: {
+            show: false
+          },
+          axisTick: {
+            show: false
+          },
+          axisLine: {
+            show: false
+          },
+          animation: false
+        },
+        yAxis: {
+          type: 'value',
+          scale: true,
+          axisTick: {
+            show: false
+          },
+          axisLine: {
+            show: false
+          },
+          animation: false
+        },
+        series: [
+          {
+            type: 'line',
+            lineStyle: {
+              width: 0.5
+            },
+            showSymbol: false,
+            dimensions: [
+              'xDim',
+              'yDim'
+            ],
+            encode: {
+              x: 'xDim',
+              y: 'yDim'
+            },
+            data: [],
+            animation: false
+          }
+        ]
+      }
+    })
 
   const [abpConfigPanelHeight, setAbpConfigPanelHeight] = useState(0)
   const [abpConfigShow, setAbpConfigShow] = useState(false)
@@ -497,7 +609,9 @@ const MagusView = (props) => {
 
   // const onTabSelect = (e, data) => setSelectedTab(data.value)
 
-  return (
+  // console.log(abpOrigs)
+
+  return (<IonPage>
     <div style={{ display: 'flex' }}>
 
       {/** left nav */}
@@ -643,14 +757,14 @@ const MagusView = (props) => {
         <div style={{ display: 'flex' }}>
           <div style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'space-around' }}>
             <div style={{ width: '50%' }}>
-              <Caption1 style={{ marginLeft: GRID_LEFT }}>IR - Original</Caption1>
-              <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={rouguSpoIr} />
+              {/* <Caption1 style={{ marginLeft: GRID_LEFT }}>IR - Original</Caption1>
+              <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={rouguSpoIr} /> */}
               <Caption1 style={{ marginLeft: GRID_LEFT }}>IR - Filtered</Caption1>
               <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={rouguSpoIrFilt} />
             </div>
             <div style={{ width: '50%' }}>
-              <Caption1 style={{ marginLeft: GRID_LEFT }}>Red - Original</Caption1>
-              <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={rouguSpoRd} />
+              {/* <Caption1 style={{ marginLeft: GRID_LEFT }}>Red - Original</Caption1>
+              <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={rouguSpoRd} /> */}
               <Caption1 style={{ marginLeft: GRID_LEFT }}>Red - Filtered</Caption1>
               <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={rouguSpoRdFilt} />
             </div>
@@ -772,7 +886,43 @@ const MagusView = (props) => {
 
         <div style={{ display: 'flex' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            {
+            <div key="ABP_PPG1_LEDC1" style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
+              <Caption1 style={{ marginLeft: GRID_LEFT }}>PPG1_LEDC1</Caption1>
+              <ReactECharts style={{ height: abpChartHeight }} option={{
+                ...abpOrigs.PPG1_LEDC1,
+                xAxis: {
+                  max: abpSamplesInChart,
+                  splitNumber: abpSamplesInChart / 50 + 1,
+                  type: 'value',
+                  min: 0,
+                  // max: ABP_DEFAULT_SAMPLES_IN_CHART,
+                  // splitNumber: ABP_DEFAULT_SAMPLES_IN_CHART / 50 + 1,
+                  axisLabel: { show: false },
+                  axisTick: { show: false },
+                  axisLine: { show: false },
+                  animation: false
+                }
+              }} />
+            </div>
+            <div key="ABP_PPG2_LEDC1" style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
+              <Caption1 style={{ marginLeft: GRID_LEFT }}>PPG2_LEDC1</Caption1>
+              <ReactECharts style={{ height: abpChartHeight }} option={{
+                ...abpOrigs.PPG2_LEDC1,
+                xAxis: {
+                  max: abpSamplesInChart,
+                  splitNumber: abpSamplesInChart / 50 + 1,
+                  type: 'value',
+                  min: 0,
+                  // max: ABP_DEFAULT_SAMPLES_IN_CHART,
+                  // splitNumber: ABP_DEFAULT_SAMPLES_IN_CHART / 50 + 1,
+                  axisLabel: { show: false },
+                  axisTick: { show: false },
+                  axisLine: { show: false },
+                  animation: false
+                }
+              }} />
+            </div>            
+            {/*
               abpOrder.map(name => (
                   <div key={name} style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
                     <Caption1 style={{ marginLeft: GRID_LEFT }}>{name}</Caption1>
@@ -793,7 +943,7 @@ const MagusView = (props) => {
                     }} />
                   </div>
               ))
-            }
+            */}
             {/*
             <div key='abp-original-all' style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
               <Caption1 style={{ marginLeft: GRID_LEFT }}>ABP (original)</Caption1>
@@ -868,7 +1018,7 @@ const MagusView = (props) => {
         <div style={{ height: 240 }} />
       </div>
     </div>
-  )
+  </IonPage>)
 }
 
 export default MagusView

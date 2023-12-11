@@ -11,6 +11,7 @@ import path from 'node:path'
 import fs from 'node:fs'
 import process from 'node:process'
 import { Buffer } from 'node:buffer'
+import assert from 'node:assert/strict'
 
 import { sensparse } from '../protocol/sensparse.js'
 import { ads129xParse } from '../protocol/ads129xParse.js'
@@ -23,6 +24,18 @@ import createMax86141ViewData from '../viewdata/max86141ViewData.js'
 // import createMax86141Config from '../protocol/max86141Config.js'
 
 import createM601zViewData from '../viewdata/m601zViewData.js'
+
+/******************************************************************************
+ *
+ * Constants
+ *
+ ******************************************************************************/
+
+const VIEW_ABP_SAMPLES_IN_CHART = 1000
+const VIEW_ABP_CLEAR_AHEAD = 30
+
+const VIEW_SPO_SAMPLES_IN_CHART = 300
+const VIEW_SPO_CLEAR_AHEAD = 30
 
 const samplingFreq = regVal => [
   24.995,
@@ -79,21 +92,23 @@ const startAsync = async () => {
   })
 
   const spoMax86141ViewData = createMax86141ViewData({
-    samplesInChart: 300,
-    clearAhead: 30,
-    taglist: ['PPG1_LED1', 'PPG1_LED2']
+    samplingRate: 50,
+    samplesInChart: VIEW_SPO_SAMPLES_IN_CHART,
+    clearAhead: VIEW_SPO_CLEAR_AHEAD,
+    taglist: ['PPG1_LEDC1', 'PPG1_LEDC2']
   })
 
   const abpMax86141ViewData = createMax86141ViewData({
-    samplesInChart: 1000,
-    clearAhead: 30,
-    taglist: ['PPG1_LED1', 'PPG2_LED1', 'PPG1_LED2', 'PPG2_LED2', 'PPG1_LED3', 'PPG2_LED3']
+    samplingRate: 2048,
+    samplesInChart: VIEW_ABP_SAMPLES_IN_CHART,
+    clearAhead: VIEW_ABP_CLEAR_AHEAD,
+    taglist: ['PPG1_LEDC1', 'PPG2_LEDC1', 'PPG1_LEDC2', 'PPG2_LEDC2', 'PPG1_LEDC3', 'PPG2_LEDC3']
   })
 
   const comboMax86141ViewData = createMax86141ViewData({
     samplesInChart: 1024,
     clearAhead: 128,
-    taglist: ['PPG1_LED1', 'PPG1_LED2', 'PPG2_LED1', 'PPG2_LED2']
+    taglist: ['PPG1_LEDC1', 'PPG1_LEDC2', 'PPG2_LEDC1', 'PPG2_LEDC2']
   })
 
   const m601zViewData = createM601zViewData({
@@ -130,7 +145,7 @@ const startAsync = async () => {
 
   const max86141SpoHeadline = makeHeadline(['PPG1-LEDC1 (41-sample avg)', 'PPG1_LEDC2 (41-sample avg)'])
   const max86141AbpHeadline = makeHeadline(['PPG1-LEDC1', 'PPG2-LEDC1', 'PPG1-LEDC2', 'PPG2-LEDC2'])
-  
+
   const max86141SpoRouguHeadline = makeHeadline(['IR', 'IR Filtered', 'Red', 'Red Filtered', 'SpO2', 'Heart Rate'])
 
   let m601zHeadlineNames = []
@@ -278,7 +293,7 @@ const startAsync = async () => {
         if (!parted) continue
 
         if (parted.packetStart) {
-          console.log(`packetStart ${parted.packetStart} not zero`)
+          console.log(`packetStart ${parted.packetStart} not zero`, input)
         }
         input = input.subarray(parted.packetEnd)
 
@@ -315,9 +330,22 @@ const startAsync = async () => {
           case 0x0001: {
             const parsed = max86141Parse(parted.tlvs)
 
-            if (parsed.brief.instanceId === 0) { // spo
+            // this is config packet
+            if (!parsed.samples) {
+              if (parsed.instanceId === 0) {
+                assert.equal(parsed.samplingRate, 50, 'spo sampling rate not 50')
+                spoMax86141ViewData.reset(VIEW_SPO_SAMPLES_IN_CHART, VIEW_SPO_CLEAR_AHEAD)
+                console.log('reset spo view')
+              } else if (parsed.instanceId === 1) {
+                assert.equal(parsed.samplingRate, 2048, 'abp sampling rate not 2048')
+                spoMax86141ViewData.reset(VIEW_ABP_SAMPLES_IN_CHART, VIEW_ABP_CLEAR_AHEAD)
+                console.log('reset abp view')
+              }
+            } else if (parsed.brief.instanceId === 0) { // spo
               const viewData = spoMax86141ViewData.build(parsed)
+
               const { brief, filed, origs, filts, acs, dcs, acRms, dcAvg, ratio, rougu } = viewData
+
               // const r = ratio[1] / ratio[0]
               // const a = -16.666666
               // const b = 8.333333
@@ -383,7 +411,7 @@ const startAsync = async () => {
 
               spoParsed.samples.push({
                 tag: 1,
-                name: 'PPG1_LED1',
+                name: 'PPG1_LEDC1',
                 val: ppg1Led1.reduce((acc, x) => acc + x, 0) / ppg1Led1.length
               })
 

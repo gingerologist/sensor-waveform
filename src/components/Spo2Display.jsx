@@ -55,20 +55,20 @@ const Spo2Display = ({ acRms, dcAvg, ratio }) => {
         </div>
       </div>
       <div style={{ display: 'flex', height: 48 }}>
-        <div style={{ flex: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        {/* <div style={{ flex: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           AC<sub>RMS</sub>: {Array.isArray(acRms) ? acRms[0].toFixed(2) : ''}
-        </div>
-        <div style={{ flex: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        </div> */}
+        {/* <div style={{ flex: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           AC<sub>RMS</sub> : {Array.isArray(acRms) ? acRms[1].toFixed(2) : ''}
-        </div>
+        </div> */}
       </div>
       <div style={{ display: 'flex', height: 48 }}>
-        <div style={{ flex: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        {/* <div style={{ flex: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           DC: {Array.isArray(dcAvg) ? dcAvg[0].toFixed(0) : ''}
-        </div>
-        <div style={{ flex: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        </div> */}
+        {/* <div style={{ flex: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           DC: {Array.isArray(dcAvg) ? dcAvg[1].toFixed(0) : ''}
-        </div>
+        </div> */}
       </div>
       <div style={{ backgroundColor: tokens.colorNeutralBackground1, height: 48, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
         <Tooltip content='The calculated spo2 value is considered "valid" only if the average DCs are in the range of 200,000 to 520,000 and ACs (rms) are in the range of 30 to 300 for both IR and RED signals.'>

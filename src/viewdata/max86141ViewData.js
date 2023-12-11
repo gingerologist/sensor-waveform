@@ -8,41 +8,41 @@ const extractTagList = samples =>
 
 const fromTagName = name => {
   switch (name) {
-    case 'PPG1_LED1':
+    case 'PPG1_LEDC1':
       return 0x01
-    case 'PPG1_LED2':
+    case 'PPG1_LEDC2':
       return 0x02
-    case 'PPG1_LED3':
+    case 'PPG1_LEDC3':
       return 0x03
-    case 'PPG1_LED4':
+    case 'PPG1_LEDC4':
       return 0x04
-    case 'PPG1_LED5':
+    case 'PPG1_LEDC5':
       return 0x05
-    case 'PPG1_LED6':
+    case 'PPG1_LEDC6':
       return 0x06
-    case 'PPG2_LED1':
+    case 'PPG2_LEDC1':
       return 0x07
-    case 'PPG2_LED2':
+    case 'PPG2_LEDC2':
       return 0x08
-    case 'PPG2_LED3':
+    case 'PPG2_LEDC3':
       return 0x09
-    case 'PPG2_LED4':
+    case 'PPG2_LEDC4':
       return 0x0a
-    case 'PPG2_LED5':
+    case 'PPG2_LEDC5':
       return 0x0b
-    case 'PPG2_LED6':
+    case 'PPG2_LEDC6':
       return 0x0c
-    case 'PPF1_LED1':
+    case 'PPF1_LEDC1':
       return 0x0d
-    case 'PPF1_LED2':
+    case 'PPF1_LEDC2':
       return 0x0e
-    case 'PPF1_LED3':
+    case 'PPF1_LEDC3':
       return 0x0f
-    case 'PPF2_LED1':
+    case 'PPF2_LEDC1':
       return 0x13
-    case 'PPF2_LED2':
+    case 'PPF2_LEDC2':
       return 0x14
-    case 'PPF2_LED3':
+    case 'PPF2_LEDC3':
       return 0x15
     case 'PROX1':
       return 0x19
@@ -59,6 +59,8 @@ class Transform {
     this.tag = fromTagName(name)
     this.samplingRate = samplingRate
     this.reset(samplesInChart)
+
+    console.log("new Trans", name, samplingRate, samplesInChart)
   }
 
   reset (samplesInChart) {
@@ -184,7 +186,8 @@ class Transform {
 }
 
 class Max86141ViewData {
-  constructor ({ samplesInChart, clearAhead, filters, taglist }) {
+  constructor ({ samplingRate, samplesInChart, clearAhead, filters, taglist }) {
+    this.samplingRate = samplingRate
     this.samplesInChart = samplesInChart || 600
     this.clearAhead = clearAhead || 100
     this.filters = Array.isArray(filters) || []
@@ -192,8 +195,9 @@ class Max86141ViewData {
     this.regbuf = Buffer.alloc(0)
   }
 
-  reset (samplesInChart) {
+  reset (samplesInChart, clearAhead) {
     this.samplesInChart = samplesInChart
+    this.clearAhead = clearAhead
     this.transforms.forEach(trans => trans.reset(samplesInChart))
     this.regbuf = Buffer.alloc(0)
   }
@@ -292,7 +296,8 @@ class Max86141ViewData {
     // create transforms by data tags
     if (!this.transforms) {
       const taglist = samples.reduce((list, sample) => list.includes(sample.name) ? list : [...list, sample.name], [])
-      this.transforms = taglist.map(name => new Transform(name, brief.samplingRate, this.samplesInChart))
+      // this.transforms = taglist.map(name => new Transform(name, brief.samplingRate, this.samplesInChart))
+      this.transforms = taglist.map(name => new Transform(name, this.samplingRate, this.samplesInChart))
     }
 
     const viewData = { brief, filed: [], origs: [], filts: [], acs: [], dcs: [], acRms: [], dcAvg: [], ratio: [], tags: this.transforms.map(t => t.name) }
@@ -302,6 +307,7 @@ class Max86141ViewData {
         .map(smpl => smpl.val)
       viewData.filed.push(filed)
       trans.write(filed)
+
       const { orig, filt, ac, dc, acRms, dcAvg, ratio } = trans.viewData(10)
       viewData.origs.push(orig)
       viewData.filts.push(filt)
@@ -317,8 +323,8 @@ class Max86141ViewData {
       if (tags.length === 2 && tags[0] === 1 && tags[1] === 2) {
         /** typedef struct __attribute__((packed)) max86141_rougu_data
             {
-                int ir;
-                int rd;
+                // int ir; These two field removed in latest packet definition
+                // int rd;
                 int irdc;
                 int rddc;
                 int irFilt;
@@ -330,7 +336,7 @@ class Max86141ViewData {
             } max86141_rougu_data_t; */
 
         // assume 30 pairs
-        if (rougu.length === 960) {
+        if (rougu.length === 1200) {
           const ir = []
           const rd = []
           const irdc = []
@@ -339,20 +345,20 @@ class Max86141ViewData {
           const rdFilt = []
           const spo = []
           const hr = []
-          for (let i = 0; i < 30; i++) {
-            ir.push(rougu.readInt32LE(i * 32 + 0))
-            rd.push(rougu.readInt32LE(i * 32 + 4))
-            irdc.push(rougu.readInt32LE(i * 32 + 8))
-            rddc.push(rougu.readInt32LE(i * 32 + 12))
-            irFilt.push(rougu.readInt32LE(i * 32 + 16))
-            rdFilt.push(rougu.readInt32LE(i * 32 + 20))
-            spo.push(rougu.readInt32LE(i * 32 + 24))
-            hr.push(rougu.readInt32LE(i * 32 + 28))
+          for (let i = 0; i < 50; i++) {
+            // ir.push(rougu.readInt32LE(i * 32 + 0))
+            // rd.push(rougu.readInt32LE(i * 32 + 4))
+            irdc.push(rougu.readInt32LE(i * 24 + 0))
+            rddc.push(rougu.readInt32LE(i * 24 + 4))
+            irFilt.push(rougu.readInt32LE(i * 24 + 8))
+            rdFilt.push(rougu.readInt32LE(i * 24 + 12))
+            spo.push(rougu.readInt32LE(i * 24 + 16))
+            hr.push(rougu.readInt32LE(i * 24 + 20))
           }
 
           viewData.rougu = { ir, rd, irdc, rddc, irFilt, rdFilt, spo, hr }
         } else {
-          console.log(`warning: rougu data length: ${rougu.length}, not 960`)
+          console.log(`warning: rougu data length: ${rougu.length}, not 960`, rougu)
         }
       }
     }

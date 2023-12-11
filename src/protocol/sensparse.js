@@ -57,7 +57,7 @@ const peekBrief = tlv => {
  */
 
 let count = 0
-const debug = false
+const debug = 0
 
 export const sensparse = input => {
   count++
