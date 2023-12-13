@@ -219,6 +219,19 @@ const parseDetail = (data, tlv) => {
        */
       break
     }
+    case 0xe8: {
+      const index = tlv.value.readInt32LE(0)
+      if (index >= 0) {
+        data.feature = {
+          index,
+          ptt: tlv.value.readFloatLE(4),
+          idc: tlv.value.readFloatLE(8),
+          imax: tlv.value.readFloatLE(12),
+          imin: tlv.value.readFloatLE(16)
+        }
+      }
+      break
+    }
 
     case 0xf5: {
       data.rougu = tlv.value

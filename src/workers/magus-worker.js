@@ -31,8 +31,8 @@ import createM601zViewData from '../viewdata/m601zViewData.js'
  *
  ******************************************************************************/
 
-const VIEW_ABP_SAMPLES_IN_CHART = 1000
-const VIEW_ABP_CLEAR_AHEAD = 30
+const VIEW_ABP_SAMPLES_IN_CHART = 10240
+const VIEW_ABP_CLEAR_AHEAD = 512
 
 const VIEW_SPO_SAMPLES_IN_CHART = 300
 const VIEW_SPO_CLEAR_AHEAD = 30
@@ -128,8 +128,8 @@ const startAsync = async () => {
   let max86141SpoRouguLog = null
 
   let max86141AbpLog = null
-  let max86141AbpStartUs = 0
-  let max86141AbpCount = 0
+  const max86141AbpStartUs = 0
+  const max86141AbpCount = 0
 
   let m601zLog = null
   let tempCount = 0
@@ -143,9 +143,8 @@ const startAsync = async () => {
     '50Hz notch, LPF, and HPF'
   ])
 
-  const max86141SpoHeadline = makeHeadline(['PPG1-LEDC1 (41-sample avg)', 'PPG1_LEDC2 (41-sample avg)'])
-  const max86141AbpHeadline = makeHeadline(['PPG1-LEDC1', 'PPG2-LEDC1', 'PPG1-LEDC2', 'PPG2-LEDC2'])
-
+  const max86141SpoHeadline = makeHeadline(['PPG1-LEDC1', 'PPG1_LEDC2'])
+  const max86141AbpHeadline = makeHeadline(['PPG1-LEDC1', 'PPG2-LEDC1', 'feat_ptt', 'feat_idc', 'feat_imax', 'feat_imin'])
   const max86141SpoRouguHeadline = makeHeadline(['IR', 'IR Filtered', 'Red', 'Red Filtered', 'SpO2', 'Heart Rate'])
 
   let m601zHeadlineNames = []
@@ -169,55 +168,62 @@ const startAsync = async () => {
     self.postMessage({ oob: 'ads129x-recording-stopped' })
   }
 
+  const spoAutoRecording = true
   const startMax86141SpoLogging = () => {
-    if (max86141SpoLog === null) {
-      const filename = `spodata-${timestamp()}.csv`
-      const filepath = path.join(process.cwd(), 'log', filename)
-      max86141SpoLog = fs.createWriteStream(filepath)
-      max86141SpoLog.write(max86141SpoHeadline)
-    }
+    // if (max86141SpoLog === null) {
+    //   const filename = `spodata-${timestamp()}.csv`
+    //   const filepath = path.join(process.cwd(), 'log', filename)
+    //   max86141SpoLog = fs.createWriteStream(filepath)
+    //   max86141SpoLog.write(max86141SpoHeadline)
+    // }
 
-    if (max86141SpoRouguLog === null) {
-      const filename = `spodata-rougu-${timestamp()}.csv`
-      const filepath = path.join(process.cwd(), 'log', filename)
-      max86141SpoRouguLog = fs.createWriteStream(filepath)
-      max86141SpoRouguLog.write(max86141SpoRouguHeadline)
-    }
+    // if (max86141SpoRouguLog === null) {
+    //   const filename = `spodata-rougu-${timestamp()}.csv`
+    //   const filepath = path.join(process.cwd(), 'log', filename)
+    //   max86141SpoRouguLog = fs.createWriteStream(filepath)
+    //   max86141SpoRouguLog.write(max86141SpoRouguHeadline)
+    // }
 
+    // spoAutoRecording = true
     self.postMessage({ oob: 'max86141-spo-recording-started' })
   }
 
   const stopMax86141SpoLogging = () => {
-    if (max86141SpoLog) {
-      max86141SpoLog.end()
-      max86141SpoLog = null
-    }
+    // if (max86141SpoLog) {
+    //   max86141SpoLog.end()
+    //   max86141SpoLog = null
+    // }
 
-    if (max86141SpoRouguLog) {
-      max86141SpoRouguLog.end()
-      max86141SpoRouguLog = null
-    }
+    // if (max86141SpoRouguLog) {
+    //   max86141SpoRouguLog.end()
+    //   max86141SpoRouguLog = null
+    // }
+    // spoAutoRecording = false
     self.postMessage({ oob: 'max86141-spo-recording-stopped' })
   }
 
-  const startMax86141AbpLogging = () => {
-    if (max86141AbpLog === null) {
-      const filename = `abpdata-${timestamp()}.csv`
-      const filepath = path.join(process.cwd(), 'log', filename)
-      max86141AbpLog = fs.createWriteStream(filepath)
+  const abpAutoRecording = true
 
-      // reset count
-      max86141AbpCount = 0
-      max86141AbpLog.write(max86141AbpHeadline)
-    }
+  const startMax86141AbpLogging = () => {
+    // if (max86141AbpLog === null) {
+    //   const filename = `abpdata-${timestamp()}.csv`
+    //   const filepath = path.join(process.cwd(), 'log', filename)
+    //   max86141AbpLog = fs.createWriteStream(filepath)
+
+    //   // reset count
+    //   max86141AbpCount = 0
+    //   max86141AbpLog.write(max86141AbpHeadline)
+    // }
+    // abpAutoRecording = true
     self.postMessage({ oob: 'max86141-abp-recording-started' })
   }
 
   const stopMax86141AbpLogging = () => {
-    if (max86141AbpLog) {
-      max86141AbpLog.end()
-      max86141AbpLog = null
-    }
+    // if (max86141AbpLog) {
+    //   max86141AbpLog.end()
+    //   max86141AbpLog = null
+    // }
+    // abpAutoRecording = false
     self.postMessage({ oob: 'max86141-abp-recording-stopped' })
   }
 
@@ -332,14 +338,57 @@ const startAsync = async () => {
 
             // this is config packet
             if (!parsed.samples) {
-              if (parsed.instanceId === 0) {
-                assert.equal(parsed.samplingRate, 50, 'spo sampling rate not 50')
+              console.log('conf pkt', parsed.brief.instanceId)
+
+              if (max86141SpoLog) {
+                console.log('close spo log')
+                max86141SpoLog.end()
+                max86141SpoLog = null
+              }
+
+              if (max86141SpoRouguLog) {
+                console.log('close spo rougu log')
+                max86141SpoRouguLog.end()
+                max86141SpoRouguLog = null
+              }
+
+              if (max86141AbpLog) {
+                console.log('close abp log')
+                max86141AbpLog.end()
+                max86141AbpLog = null
+              }
+
+              if (parsed.brief.instanceId === 0) { // SPO
+                assert.equal(parsed.brief.samplingRate, 50, 'spo sampling rate not 50')
                 spoMax86141ViewData.reset(VIEW_SPO_SAMPLES_IN_CHART, VIEW_SPO_CLEAR_AHEAD)
-                console.log('reset spo view')
-              } else if (parsed.instanceId === 1) {
-                assert.equal(parsed.samplingRate, 2048, 'abp sampling rate not 2048')
+
+                if (spoAutoRecording) {
+                  const filename1 = `spodata-${timestamp()}.csv`
+                  const filepath1 = path.join(process.cwd(), 'log', filename1)
+                  max86141SpoLog = fs.createWriteStream(filepath1)
+                  max86141SpoLog.write(max86141SpoHeadline)
+
+                  console.log(`logfile ${filename1}`)
+
+                  const filename2 = `spodata-rougu-${timestamp()}.csv`
+                  const filepath2 = path.join(process.cwd(), 'log', filename2)
+                  max86141SpoRouguLog = fs.createWriteStream(filepath2)
+                  max86141SpoRouguLog.write(max86141SpoRouguHeadline)
+
+                  console.log(`logfile ${filename2}`)
+                }
+              } else if (parsed.brief.instanceId === 1) { // ABP
+                assert.equal(parsed.brief.samplingRate, 2048, 'abp sampling rate not 2048')
                 spoMax86141ViewData.reset(VIEW_ABP_SAMPLES_IN_CHART, VIEW_ABP_CLEAR_AHEAD)
-                console.log('reset abp view')
+
+                if (abpAutoRecording) {
+                  const filename = `abpdata-${timestamp()}.csv`
+                  const filepath = path.join(process.cwd(), 'log', filename)
+                  max86141AbpLog = fs.createWriteStream(filepath)
+                  max86141AbpLog.write(max86141AbpHeadline)
+
+                  console.log(`logfile ${filename}`)
+                }
               }
             } else if (parsed.brief.instanceId === 0) { // spo
               const viewData = spoMax86141ViewData.build(parsed)
@@ -374,29 +423,37 @@ const startAsync = async () => {
               }
             } else if (parsed.brief.instanceId === 1) { // abp
               const viewData = abpMax86141ViewData.build(parsed)
-              const { brief, filed, origs, filts, acs, tags } = viewData
+              const { brief, filed, origs, filts, acs, tags, feature } = viewData
               self.postMessage({ brief, origs, filts, acs, tags },
                 [...origs.map(x => x.buffer), ...filts.map(x => x.buffer), ...acs.map(x => x.buffer)])
 
               if (max86141AbpLog) {
-                if (max86141AbpCount === 0) {
-                  max86141AbpStartUs = Date.now() * 1000
-                  const headline = ['timestamp', ...tags].join(', ') + '\r\n'
-                  max86141AbpLog.write(headline)
+                // if (max86141AbpCount === 0) {
+                //   max86141AbpStartUs = Date.now() * 1000
+                //   const headline = ['timestamp', ...tags].join(', ') + '\r\n'
+                //   max86141AbpLog.write(headline)
+                // }
+
+                // const rows = filed[0].length
+                // const intervalUs = 1000 * 1000 / readSamplingRate(parsed.reg10[2])
+                // const base = max86141AbpStartUs + max86141AbpCount * rows * intervalUs
+
+                // for (let row = 0; row < rows; row++) {
+                //   const timestamp = Math.round(base + row * intervalUs)
+                //   const list = filed.reduce((list, col) => [...list, col[row]], [])
+                //   const line = timestamp.toString() + ', ' + list.join(', ') + '\r\n'
+                //   max86141AbpLog.write(line)
+                // }
+
+                // max86141AbpCount++
+
+                for (let i = 0; i < filed[0].length; i++) {
+                  if (feature && feature.index === i) {
+                    max86141AbpLog.write(`${filed[0][i]}, ${filed[1][i]}, ${feature.ptt}, ${feature.idc}, ${feature.imax}, ${feature.imin}\r\n`)
+                  } else {
+                    max86141AbpLog.write(`${filed[0][i]}, ${filed[1][i]}\r\n`)
+                  }
                 }
-
-                const rows = filed[0].length
-                const intervalUs = 1000 * 1000 / readSamplingRate(parsed.reg10[2])
-                const base = max86141AbpStartUs + max86141AbpCount * rows * intervalUs
-
-                for (let row = 0; row < rows; row++) {
-                  const timestamp = Math.round(base + row * intervalUs)
-                  const list = filed.reduce((list, col) => [...list, col[row]], [])
-                  const line = timestamp.toString() + ', ' + list.join(', ') + '\r\n'
-                  max86141AbpLog.write(line)
-                }
-
-                max86141AbpCount++
               }
             } else if (parsed.brief.instanceId === 128) { // combo
               if (spoParsed.samples.length === 0) {

@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 
 import {
   Button, Toolbar, ToolbarButton, Caption1, Body1, ToolbarDivider, Divider,
-  Popover, PopoverTrigger, PopoverSurface, Text, ToggleButton
+  Popover, PopoverTrigger, PopoverSurface, Text, ToggleButton, Switch
 } from '@fluentui/react-components'
 import {
   FolderOpen24Regular, AlignSpaceFitVertical20Regular, AlignSpaceEvenlyVertical20Regular,
@@ -17,15 +17,12 @@ import StopWatch from './StopWatch'
 import EcgDisplay from './EcgDisplay'
 import Spo2Display from './Spo2Display'
 import Spo2RouguDisplay from './Spo2RouguDisplay'
-import Max86141ConfigPanel from './Max86141ConfigPanel'
-
-import AnimateHeight from 'react-animate-height'
 
 import { shell } from 'electron'
 
 import path from 'node:path'
 import process from 'node:process'
-import { IonPage } from '@ionic/react'
+import { IonHeader, IonPage, IonTitle, IonToggle, IonToolbar, IonButtons, IonButton, IonText, IonCard, IonCardHeader, IonCardTitle } from '@ionic/react'
 
 const ECG_SAMPLE_COUNT = 2000
 
@@ -46,7 +43,47 @@ const CHART_MIN_HEIGHT = 150
 const CHART_STEP_HEIGHT = 30
 const CHART_MAX_HEIGHT = 720
 
-const ABP_DEFAULT_SAMPLES_IN_CHART = 1000
+const ABP_DEFAULT_SAMPLES_IN_CHART = 10240
+
+const buildAbpOption = (data) => {
+  return {
+    grid: {
+      show: true,
+      top: 8,
+      bottom: 16,
+      left: GRID_LEFT,
+      right: GRID_RIGHT
+    },
+    xAxis: {
+      type: 'value',
+      min: 0,
+      max: ABP_DEFAULT_SAMPLES_IN_CHART,
+      // splitNumber: 5, not working
+      interval: 2048,
+      axisLabel: { show: false },
+      axisTick: { show: false },
+      axisLine: { show: false },
+      animation: false
+    },
+    yAxis: {
+      type: 'value',
+      scale: true,
+      axisTick: { show: false },
+      axisLine: { show: false },
+      animation: false
+    },
+    series: [{
+      type: 'line',
+      lineStyle: { width: 0.5 },
+      showSymbol: false,
+      dimensions: ['xDim', 'yDim'],
+      encode: { x: 'xDim', y: 'yDim' },
+      // data: new Uint32Array(0),
+      data,
+      animation: false
+    }]
+  }
+}
 
 const ecgOptBase = {
   grid: {
@@ -200,68 +237,6 @@ const initRouguSpoRdChartOpt = makeRouguSpoChartOpt(rouguSpoRdData)
 const initRouguSpoIrFiltChartOpt = makeRouguSpoChartOpt(rouguSpoIrFiltData)
 const initRouguSpoRdFiltChartOpt = makeRouguSpoChartOpt(rouguSpoRdFiltData)
 
-const abpLineDataProps = {
-  type: 'line',
-  lineStyle: { width: 0.5 },
-  showSymbol: false,
-  dimensions: ['xDim', 'yDim'],
-  encode: { x: 'xDim', y: 'yDim' },
-  data: new Uint32Array(0),
-  animation: false
-}
-
-const initAbpOption = {
-  grid: {
-    show: true,
-    top: 8,
-    bottom: 16,
-    left: GRID_LEFT,
-    right: GRID_RIGHT
-  },
-  xAxis: {
-    type: 'value',
-    min: 0,
-    max: ABP_DEFAULT_SAMPLES_IN_CHART,
-    splitNumber: ABP_DEFAULT_SAMPLES_IN_CHART / 50 + 1,
-    axisLabel: { show: false },
-    axisTick: { show: false },
-    axisLine: { show: false },
-    animation: false
-  },
-  yAxis: {
-    type: 'value',
-    scale: true,
-    // axisLabel: { show: false },
-    axisTick: { show: false },
-    axisLine: { show: false },
-    animation: false
-  },
-
-  // https://jsfiddle.net/aqjxko1e/
-  series: [{
-    type: 'line',
-    lineStyle: { width: 0.5 },
-    showSymbol: false,
-    dimensions: ['xDim', 'yDim'],
-    encode: { x: 'xDim', y: 'yDim' },
-    data: new Uint32Array(0),
-    animation: false
-  }]
-}
-
-/**
- * series: [
-    {
-      name: 'foo',
-      type: 'line',
-      data: [[1, 2], [2, 3]]
-    }, {
-      name: 'bar',
-      type: 'line',
-      data: [[1, 0], [2, 7]]
-    }
-  ]
- */
 const tempChartInitOption = {
   grid: {
     show: true,
@@ -291,10 +266,9 @@ const Spacer24 = () => (<div style={{ height: 24 }}></div>)
 
 const worker = new Worker(new URL('../workers/magus-worker.js', import.meta.url))
 
-let abpListInitialized = false
+const dummy = new Uint32Array(0)
 
 const MagusView = (props) => {
-  // const [selectedTab, setSelectedTab] = useState('ECG')
 
   const [ecgRecording, setEcgRecording] = useState(false)
   const [spoRecording, setSpoRecording] = useState(false)
@@ -314,8 +288,6 @@ const MagusView = (props) => {
   const [abpChartHeight, setAbpChartHeight] = useState(300)
   const [tempChartHeight, setTempChartHeight] = useState(600)
 
-  const [abpSamplesInChart, setAbpSamplesInChart] = useState(ABP_DEFAULT_SAMPLES_IN_CHART)
-
   const [spoIr, setSpoIr] = useState(initSpoOption)
   const [spoRed, setSpoRed] = useState(initSpoOption)
   const [spoIrFilt, setSpoIrFilt] = useState(initSpoOption)
@@ -334,162 +306,10 @@ const MagusView = (props) => {
   const [rouguSpo, setRouguSpo] = useState(0)
   const [rouguHr, setRouguHr] = useState(0)
 
-  const [abpOrigs, setAbpOrigs] = useState(
-    {
-      PPG1_LEDC1: {
-        grid: {
-          show: true,
-          top: 8,
-          bottom: 16,
-          left: 96,
-          right: 16
-        },
-        xAxis: {
-          type: 'value',
-          min: 0,
-          max: 1000,
-          splitNumber: 21,
-          axisLabel: {
-            show: false
-          },
-          axisTick: {
-            show: false
-          },
-          axisLine: {
-            show: false
-          },
-          animation: false
-        },
-        yAxis: {
-          type: 'value',
-          scale: true,
-          axisTick: {
-            show: false
-          },
-          axisLine: {
-            show: false
-          },
-          animation: false
-        },
-        series: [
-          {
-            type: 'line',
-            lineStyle: {
-              width: 0.5
-            },
-            showSymbol: false,
-            dimensions: [
-              'xDim',
-              'yDim'
-            ],
-            encode: {
-              x: 'xDim',
-              y: 'yDim'
-            },
-            data: []
-          }
-        ]
-      },
-      PPG2_LEDC1: {
-        grid: {
-          show: true,
-          top: 8,
-          bottom: 16,
-          left: 96,
-          right: 16
-        },
-        xAxis: {
-          type: 'value',
-          min: 0,
-          max: 1000,
-          splitNumber: 21,
-          axisLabel: {
-            show: false
-          },
-          axisTick: {
-            show: false
-          },
-          axisLine: {
-            show: false
-          },
-          animation: false
-        },
-        yAxis: {
-          type: 'value',
-          scale: true,
-          axisTick: {
-            show: false
-          },
-          axisLine: {
-            show: false
-          },
-          animation: false
-        },
-        series: [
-          {
-            type: 'line',
-            lineStyle: {
-              width: 0.5
-            },
-            showSymbol: false,
-            dimensions: [
-              'xDim',
-              'yDim'
-            ],
-            encode: {
-              x: 'xDim',
-              y: 'yDim'
-            },
-            data: [],
-            animation: false
-          }
-        ]
-      }
-    })
-
-  const [abpConfigPanelHeight, setAbpConfigPanelHeight] = useState(0)
-  const [abpConfigShow, setAbpConfigShow] = useState(false)
-  const [abpConfigEdit, setAbpConfigEdit] = useState([])
+  const [abpOrigs, setAbpOrigs] = useState([dummy, dummy])
 
   const [tempChartOption, setTempChartOption] = useState(tempChartInitOption)
 
-  const [abpOrder, setAbpOrder] = useState([])
-
-  const abpReorder = (up, index) => {
-    if (up) {
-      setAbpOrder([
-        ...abpOrder.slice(0, index - 1),
-        abpOrder[index],
-        abpOrder[index - 1],
-        ...abpOrder.slice(index + 1)
-      ])
-    } else {
-      setAbpOrder([
-        ...abpOrder.slice(0, index),
-        abpOrder[index + 1],
-        abpOrder[index],
-        ...abpOrder.slice(index + 2)
-      ])
-    }
-  }
-
-  const abpZoom = zoomIn => {
-    const newSamplesInChart = zoomIn ? abpSamplesInChart / 2 : abpSamplesInChart * 2
-    const opt = {
-      xAxis: {
-        max: newSamplesInChart,
-        splitNumber: newSamplesInChart / 50 + 1
-      },
-      series: [{
-        data: new Uint32Array(0)
-      }]
-    }
-
-    setAbpOrigs(Object.keys(abpOrigs).reduce((obj, key) => ({ ...obj, [key]: opt }), {}))
-    setAbpSamplesInChart(newSamplesInChart)
-
-    worker.postMessage({ type: 'max86141-abp-samples-in-chart', samplesInChart: newSamplesInChart })
-  }
   // run once
   useEffect(() => {
     // const w = new Worker(new URL('../workers/magus-worker.js', import.meta.url))
@@ -504,6 +324,7 @@ const MagusView = (props) => {
         } else if (e.data.oob === 'max86141-spo-recording-stopped') {
           setSpoRecording(false)
         } else if (e.data.oob === 'max86141-abp-recording-started') {
+          console.log('max86141-abp-recording-started')
           setAbpRecording(true)
         } else if (e.data.oob === 'max86141-abp-recording-stopped') {
           setAbpRecording(false)
@@ -545,36 +366,18 @@ const MagusView = (props) => {
             setRouguHr(rougu.hr.reduce((sum, v) => sum + v, 0) / rougu.hr.length)
           }
         } else if (brief.instanceId === 1) { // abp
-          const { tags, origs, filts, acs } = e.data
-
-          // console.log('acs', acs)
-
-          // first set of data is dropped
-          if (!abpListInitialized) {
-            setAbpOrder(e.data.tags)
-            // setAbpOrigs(tags.reduce((obj, tag, index) => ({ ...obj, [tag]: initAbpOption }), {}))
-            abpListInitialized = true
-          }
-
-          setAbpOrigs(tags.reduce((obj, tag, index) => ({
-            ...obj,
-            [tag]: Object.assign({}, initAbpOption, {
-              series: [Object.assign({}, abpLineDataProps, { data: origs[index] })]
-            })
-          }), {}))
+          const { origs } = e.data
+          setAbpOrigs([origs[0], origs[1]])
         }
       } else if (brief.sensorId === 2) { // ads129x
         const { leadOff, ecgOrigData, ecgProcData, ecgNtchData, ecgNlhpData } = e.data
         setHeartRate(brief.heartRate)
         setIn2pOff(leadOff.in2pOff * 2)
         setIn2nOff(leadOff.in2nOff * 2)
-        // setEcgOrig({ series: [{ data: ecgOrigData }] })
+
         setEcgOrig(makeChartOpt(ecgOptBase, ecgOrigData))
-        // setEcgProc({ series: [{ data: ecgProcData }] })
         setEcgProc(makeChartOpt(ecgOptBase, ecgProcData))
-        // setEcgNtch({ series: [{ data: ecgNtchData }] })
         setEcgNtch(makeChartOpt(ecgOptBase, ecgNtchData))
-        // setEcgNlhp({ series: [{ data: ecgNlhpData }] })
         setEcgNlhp(makeChartOpt(ecgOptBase, ecgNlhpData))
       } else if (brief.sensorId === 4) { // m601z
         const { idTemps, count } = e.data
@@ -607,418 +410,282 @@ const MagusView = (props) => {
     }
   }, [])
 
-  // const onTabSelect = (e, data) => setSelectedTab(data.value)
+  return (
+    <IonPage>
+      <IonHeader>
+        <IonToolbar mode="ios">
+          <IonTitle>IFET WEARABLE</IonTitle>
+          <IonButtons slot="end">
+            <IonButton onClick={() => shell.openExternal(path.join(process.cwd(), 'log'))}>Open Data Folder</IonButton>
+          </IonButtons>
+          {/* <ToolbarButton onClick={() => shell.openExternal(path.join(process.cwd(), 'log'))} icon={<FolderOpen24Regular />} />           */}
+        </IonToolbar>
+      </IonHeader>
+      <div style={{ display: 'flex' }}>
 
-  // console.log(abpOrigs)
+        {/** left nav */}
+        <div style={{ width: 160 }}></div>
 
-  return (<IonPage>
-    <div style={{ display: 'flex' }}>
+        <div style={{ flex: 1, minWidth: 0, height: '100vh', overflowY: 'scroll', overflowX: 'hidden' }}>
+          <h1 style={{ marginLeft: GRID_LEFT, marginTop: 48 }}>ECG</h1>
 
-      {/** left nav */}
-      <div style={{ width: 160 }}>
-        {/** hide temporarily
-        <div style={{ height: 96 }} />
-        <TabList style={{ marginLeft: 24, marginTop: 0 }} selectedValue={selectedTab} onTabSelect={onTabSelect} vertical>
-          <Tab value="ECG">ECG</Tab>
-          <Tab value="SPO">SPO2</Tab>
-          <Tab value="ABP">ABP</Tab>
-        </TabList> */}
+          {/* ECG Toolbar begin */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginRight: DISPLAY_COLUMN_WIDTH }}>
+            <Toolbar style={{ backgroundColor: tokens.colorNeutralBackground3, borderRadius: 8 }}>
+              <StopWatch
+                onStart={() => {
+                  worker.postMessage({ type: 'ads129x-recording-start' })
+                }}
+                onStop={() => {
+                  worker.postMessage({ type: 'ads129x-recording-stop' })
+                }}
+                started={ecgRecording}
+              >
+                {ecgRecording}
+              </StopWatch>
+              {/* <ToolbarButton onClick={() => shell.openExternal(path.join(process.cwd(), 'log'))} icon={<FolderOpen24Regular />} />
+              <ToolbarDivider /> */}
+              <ToolbarButton
+                disabled={ecgChartHeight <= CHART_MIN_HEIGHT}
+                icon={<AlignSpaceEvenlyVertical20Regular />}
+                onClick={() => {
+                  setEcgChartHeight(ecgChartHeight - CHART_STEP_HEIGHT)
+                }} />
+              <ToolbarButton
+                disabled={ecgChartHeight >= CHART_MAX_HEIGHT}
+                icon={<AlignSpaceFitVertical20Regular />}
+                onClick={() => {
+                  setEcgChartHeight(ecgChartHeight + CHART_STEP_HEIGHT)
+                }} />
+            </Toolbar>
+          </div>
+          {/* ECG Toolbar End */}
+
+          <Spacer24 />
+
+          {/* ECG Chart Begin */}
+          <div style={{ display: 'flex' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <Caption1 style={{ marginLeft: GRID_LEFT }}>Original</Caption1>
+              <ReactECharts style={{ height: ecgChartHeight }} option={ecgOrig} />
+              <Caption1 style={{ marginLeft: GRID_LEFT }}>MCU Processed (Zhirou Algorithm)</Caption1>
+              <ReactECharts style={{ height: ecgChartHeight }} option={ecgProc} />
+              <Caption1 style={{ marginLeft: GRID_LEFT }}>IIR Notch Filter (on PC, Experimental)</Caption1>
+              <ReactECharts style={{ height: ecgChartHeight }} option={ecgNtch} />
+              <Caption1 style={{ marginLeft: GRID_LEFT }}>IIR Notch + Lowpass/Highpass Filter (on PC, Experimental)</Caption1>
+              <ReactECharts style={{ height: ecgChartHeight }} option={ecgNlhp} />
+            </div>
+            <div style={{ width: DISPLAY_WIDTH, marginTop: 27, marginLeft: DISPLAY_MARGIN_LEFT, marginRight: DISPLAY_MARGIN_RIGHT }}>
+              <EcgDisplay hr={heartRate} la={in2pOff} ra={in2nOff} />
+            </div>
+          </div>
+          {/* ECG Chart End */}
+
+          <Divider style={{ marginTop: 48, marginBottom: 48 }} />
+
+          <h1 style={{ marginLeft: GRID_LEFT }}>SPO2</h1>
+
+          {/* SPO2 Toolbar Begin */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginRight: DISPLAY_COLUMN_WIDTH }}>
+            <Toolbar style={{ backgroundColor: tokens.colorNeutralBackground3, borderRadius: 8 }}>
+              {/* <StopWatch
+                onStart={() => {
+                  worker.postMessage({ type: 'max86141-spo-recording-start' })
+                }}
+                onStop={() => {
+                  worker.postMessage({ type: 'max86141-spo-recording-stop' })
+                }}
+                started={spoRecording}
+              >
+                {spoRecording}
+              </StopWatch> */}
+              {/* <Switch label="AUTO RECORDING" checked={spoRecording} onChange={(ev, data) => {
+                if (data.checked) {
+                  worker.postMessage({ type: 'max86141-spo-recording-start' })
+                } else {
+                  worker.postMessage({ type: 'max86141-spo-recording-stop' })
+                }
+              }}/> */}
+              {/* <ToolbarDivider /> */}
+              {/* <ToolbarButton onClick={() => shell.openExternal(path.join(process.cwd(), 'log'))} icon={<FolderOpen24Regular />} />
+              <ToolbarDivider /> */}
+              <ToolbarButton
+                disabled={spoChartHeight <= CHART_MIN_HEIGHT}
+                icon={<AlignSpaceEvenlyVertical20Regular />}
+                onClick={() => {
+                  setSpoChartHeight(spoChartHeight - CHART_STEP_HEIGHT)
+                }} />
+              <ToolbarButton
+                disabled={spoChartHeight >= CHART_MAX_HEIGHT}
+                icon={<AlignSpaceFitVertical20Regular />}
+                onClick={() => {
+                  setSpoChartHeight(spoChartHeight + CHART_STEP_HEIGHT)
+                }} />
+            </Toolbar>
+          </div>
+          {/* SPO2 Toolbar End */}
+
+          <Spacer24 />
+
+          {/* SPO2 Chart Begin */}
+          <div style={{ display: 'flex' }}>
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'space-around' }}>
+              <div style={{ width: '50%' }}>
+                <Caption1 style={{ marginLeft: GRID_LEFT }}>IR - Original</Caption1>
+                <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={spoIr} />
+                <Caption1 style={{ marginLeft: GRID_LEFT }}>IR - 170th order FIR Lowpass, cutoff freq 10Hz</Caption1>
+                <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={spoIrFilt} />
+                <Caption1 style={{ marginLeft: GRID_LEFT }}>IR, 4th Order Butterworth IIR Bandpass, cutoff freq 0.67Hz ~ 4.5Hz (AC)</Caption1>
+                <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={spoIrAc} />
+                <Caption1 style={{ marginLeft: GRID_LEFT }}>IR, 6th Order Butterworth IIR Lowpass, cutoff freq 0.67Hz (DC)</Caption1>
+                <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={spoIrDc} />
+              </div>
+              <div style={{ width: '50%' }}>
+                <Caption1 style={{ marginLeft: GRID_LEFT }}>RED - Original</Caption1>
+                <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={spoRed} />
+                <Caption1 style={{ marginLeft: GRID_LEFT }}>RED - 170th order FIR Lowpass, cutoff freq 10Hz</Caption1>
+                <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={spoRedFilt} />
+                <Caption1 style={{ marginLeft: GRID_LEFT }}>RED, 4th Order Butterworth IIR Bandpass, cutoff freq 0.67Hz ~ 4.5Hz (AC)</Caption1>
+                <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={spoRedAc} />
+                <Caption1 style={{ marginLeft: GRID_LEFT }}>RED, 6th Order Butterworth IIR Lowpass, cutoff freq 0.67Hz (DC)</Caption1>
+                <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={spoRedDc} />
+              </div>
+            </div>
+
+            <div style={{ width: DISPLAY_WIDTH, marginTop: 27, marginLeft: DISPLAY_MARGIN_LEFT, marginRight: DISPLAY_MARGIN_RIGHT }}>
+              <Spo2Display {...spoOutput} />
+            </div>
+            {/* <div style={{ width: DISPLAY_COLUMN_WIDTH }} /> */}
+          </div>
+          {/* SPO2 Chart End */}
+
+          {/* <Divider style={{ marginTop: 48, marginBottom: 48 }} /> */}
+
+          <h3 style={{ marginLeft: GRID_LEFT, color: 'gray' }}>ROUGU</h3>
+          {/* SPO2 ROUGU Toolbar Begin */}
+          <div style={{ display: 'flex' }}>
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'space-around' }}>
+              <div style={{ width: '50%' }}>
+                <Caption1 style={{ marginLeft: GRID_LEFT }}>IR - Original</Caption1>
+                <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={rouguSpoIr} />
+                <Caption1 style={{ marginLeft: GRID_LEFT }}>IR - Filtered</Caption1>
+                <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={rouguSpoIrFilt} />
+              </div>
+              <div style={{ width: '50%' }}>
+                <Caption1 style={{ marginLeft: GRID_LEFT }}>Red - Original</Caption1>
+                <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={rouguSpoRd} />
+                <Caption1 style={{ marginLeft: GRID_LEFT }}>Red - Filtered</Caption1>
+                <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={rouguSpoRdFilt} />
+              </div>
+            </div>
+            <div style={{ width: DISPLAY_WIDTH, marginTop: 27, marginLeft: DISPLAY_MARGIN_LEFT, marginRight: DISPLAY_MARGIN_RIGHT }}>
+              <Spo2RouguDisplay spo={rouguSpo} hr={rouguHr} />
+            </div>
+            {/* <div style={{ width: DISPLAY_COLUMN_WIDTH }} /> */}
+          </div>
+          {/* SPO2 ROUGU Toolbar End */}
+
+          <Spacer24 />
+
+          {/* SPO2 ROUGU Chart Begin */}
+          {/* SPO2 ROUGU Chart End */}
+
+          <Divider style={{ marginTop: 48, marginBottom: 48 }} />
+
+          <h1 style={{ marginLeft: GRID_LEFT }}>ABP</h1>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginRight: DISPLAY_COLUMN_WIDTH }}>
+            <Toolbar style={{ backgroundColor: tokens.colorNeutralBackground3, borderRadius: 8 }}>
+              {/* <Switch label="AUTO RECORDING" checked={abpRecording} onChange={(ev, data) => {
+                if (data.checked) {
+                  worker.postMessage({ type: 'max86141-abp-recording-start' })
+                } else {
+                  worker.postMessage({ type: 'max86141-abp-recording-stop' })
+                }
+              }}/> */}
+              {/* <ToolbarDivider /> */}
+              {/* <ToolbarButton onClick={() => shell.openExternal(path.join(process.cwd(), 'log'))} icon={<FolderOpen24Regular />} />
+              <ToolbarDivider /> */}
+              <ToolbarButton
+                disabled={abpChartHeight <= CHART_MIN_HEIGHT}
+                icon={<AlignSpaceEvenlyVertical20Regular />}
+                onClick={() => {
+                  setAbpChartHeight(abpChartHeight - CHART_STEP_HEIGHT)
+                }} />
+              <ToolbarButton
+                disabled={abpChartHeight >= CHART_MAX_HEIGHT}
+                icon={<AlignSpaceFitVertical20Regular />}
+                onClick={() => {
+                  setAbpChartHeight(abpChartHeight + CHART_STEP_HEIGHT)
+                }} />
+            </Toolbar>
+          </div>
+
+          <Spacer24 />
+
+          <div style={{ display: 'flex' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div key="ABP_PPG1_LEDC1" style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
+                <Caption1 style={{ marginLeft: GRID_LEFT }}>PPG1_LEDC1</Caption1>
+                <ReactECharts style={{ height: abpChartHeight }} option={buildAbpOption(abpOrigs[0])} />
+              </div>
+              <div key="ABP_PPG2_LEDC1" style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
+                <Caption1 style={{ marginLeft: GRID_LEFT }}>PPG1_LEDC1</Caption1>
+                <ReactECharts style={{ height: abpChartHeight }} option={buildAbpOption(abpOrigs[1])} />
+              </div>
+
+            </div>
+            <div style={{ width: DISPLAY_COLUMN_WIDTH }} />
+          </div>
+
+          <Divider style={{ marginTop: 48, marginBottom: 48 }} />
+
+          <h1 style={{ marginLeft: GRID_LEFT }}>BODY TEMPERATURES</h1>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginRight: DISPLAY_COLUMN_WIDTH }}>
+            <Toolbar style={{ backgroundColor: tokens.colorNeutralBackground3, borderRadius: 8 }}>
+              <StopWatch
+                onStart={() => {
+                  worker.postMessage({ type: 'm601z-recording-start' })
+                }}
+                onStop={() => {
+                  worker.postMessage({ type: 'm601z-recording-stop' })
+                }}
+                started={tempRecording}
+              >
+                {tempRecording}
+              </StopWatch>
+              {/* <ToolbarButton onClick={() => shell.openExternal(path.join(process.cwd(), 'log'))} icon={<FolderOpen24Regular />} />
+              <ToolbarDivider /> */}
+              <ToolbarButton
+                disabled={tempChartHeight <= CHART_MIN_HEIGHT}
+                icon={<AlignSpaceEvenlyVertical20Regular />}
+                onClick={() => {
+                  setTempChartHeight(tempChartHeight - CHART_STEP_HEIGHT)
+                }} />
+              <ToolbarButton
+                disabled={tempChartHeight >= CHART_MAX_HEIGHT}
+                icon={<AlignSpaceFitVertical20Regular />}
+                onClick={() => {
+                  setTempChartHeight(tempChartHeight + CHART_STEP_HEIGHT)
+                }} />
+            </Toolbar>
+          </div>
+
+          <Spacer24 />
+
+          <div style={{ display: 'flex' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <ReactECharts
+                style={{ height: tempChartHeight, width: '100%' }}
+                option={tempChartOption}
+              />
+            </div>
+            <div style={{ width: DISPLAY_COLUMN_WIDTH }} />
+          </div>
+
+          <div style={{ height: 240 }} />
+        </div>
       </div>
-
-      <div style={{ flex: 1, minWidth: 0, height: '100vh', overflowY: 'scroll', overflowX: 'hidden' }}>
-        <h1 style={{ marginLeft: GRID_LEFT, marginTop: 48 }}>ECG</h1>
-
-        {/* ECG Toolbar begin */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginRight: DISPLAY_COLUMN_WIDTH }}>
-          <Toolbar style={{ backgroundColor: tokens.colorNeutralBackground3, borderRadius: 8 }}>
-            <StopWatch
-              onStart={() => {
-                worker.postMessage({ type: 'ads129x-recording-start' })
-              }}
-              onStop={() => {
-                worker.postMessage({ type: 'ads129x-recording-stop' })
-              }}
-              started={ecgRecording}
-            >
-              {ecgRecording}
-            </StopWatch>
-            <ToolbarButton onClick={() => shell.openExternal(path.join(process.cwd(), 'log'))} icon={<FolderOpen24Regular />} />
-            <ToolbarDivider />
-            <ToolbarButton
-              disabled={ecgChartHeight <= CHART_MIN_HEIGHT}
-              icon={<AlignSpaceEvenlyVertical20Regular />}
-              onClick={() => {
-                setEcgChartHeight(ecgChartHeight - CHART_STEP_HEIGHT)
-              }} />
-            <ToolbarButton
-              disabled={ecgChartHeight >= CHART_MAX_HEIGHT}
-              icon={<AlignSpaceFitVertical20Regular />}
-              onClick={() => {
-                setEcgChartHeight(ecgChartHeight + CHART_STEP_HEIGHT)
-              }} />
-          </Toolbar>
-        </div>
-        {/* ECG Toolbar End */}
-
-        <Spacer24 />
-
-        {/* ECG Chart Begin */}
-        <div style={{ display: 'flex' }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <Caption1 style={{ marginLeft: GRID_LEFT }}>Original</Caption1>
-            <ReactECharts style={{ height: ecgChartHeight }} option={ecgOrig} />
-            <Caption1 style={{ marginLeft: GRID_LEFT }}>MCU Processed (Zhirou Algorithm)</Caption1>
-            <ReactECharts style={{ height: ecgChartHeight }} option={ecgProc} />
-            <Caption1 style={{ marginLeft: GRID_LEFT }}>IIR Notch Filter (on PC, Experimental)</Caption1>
-            <ReactECharts style={{ height: ecgChartHeight }} option={ecgNtch} />
-            <Caption1 style={{ marginLeft: GRID_LEFT }}>IIR Notch + Lowpass/Highpass Filter (on PC, Experimental)</Caption1>
-            <ReactECharts style={{ height: ecgChartHeight }} option={ecgNlhp} />
-          </div>
-          <div style={{ width: DISPLAY_WIDTH, marginTop: 27, marginLeft: DISPLAY_MARGIN_LEFT, marginRight: DISPLAY_MARGIN_RIGHT }}>
-            <EcgDisplay hr={heartRate} la={in2pOff} ra={in2nOff} />
-          </div>
-        </div>
-        {/* ECG Chart End */}
-
-        <Divider style={{ marginTop: 48, marginBottom: 48 }} />
-
-        <h1 style={{ marginLeft: GRID_LEFT }}>SPO2</h1>
-
-        {/* SPO2 Toolbar Begin */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginRight: DISPLAY_COLUMN_WIDTH }}>
-          <Toolbar style={{ backgroundColor: tokens.colorNeutralBackground3, borderRadius: 8 }}>
-            <StopWatch
-              onStart={() => {
-                worker.postMessage({ type: 'max86141-spo-recording-start' })
-              }}
-              onStop={() => {
-                worker.postMessage({ type: 'max86141-spo-recording-stop' })
-              }}
-              started={spoRecording}
-            >
-              {spoRecording}
-            </StopWatch>
-            <ToolbarButton onClick={() => shell.openExternal(path.join(process.cwd(), 'log'))} icon={<FolderOpen24Regular />} />
-            <ToolbarDivider />
-            <ToolbarButton
-              disabled={spoChartHeight <= CHART_MIN_HEIGHT}
-              icon={<AlignSpaceEvenlyVertical20Regular />}
-              onClick={() => {
-                setSpoChartHeight(spoChartHeight - CHART_STEP_HEIGHT)
-              }} />
-            <ToolbarButton
-              disabled={spoChartHeight >= CHART_MAX_HEIGHT}
-              icon={<AlignSpaceFitVertical20Regular />}
-              onClick={() => {
-                setSpoChartHeight(spoChartHeight + CHART_STEP_HEIGHT)
-              }} />
-          </Toolbar>
-        </div>
-        {/* SPO2 Toolbar End */}
-
-        <Spacer24 />
-
-        {/* SPO2 Chart Begin */}
-        <div style={{ display: 'flex' }}>
-          <div style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'space-around' }}>
-            <div style={{ width: '50%' }}>
-              <Caption1 style={{ marginLeft: GRID_LEFT }}>IR - Original</Caption1>
-              <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={spoIr} />
-              <Caption1 style={{ marginLeft: GRID_LEFT }}>IR - 170th order FIR Lowpass, cutoff freq 10Hz</Caption1>
-              <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={spoIrFilt} />
-              <Caption1 style={{ marginLeft: GRID_LEFT }}>IR, 4th Order Butterworth IIR Bandpass, cutoff freq 0.67Hz ~ 4.5Hz (AC)</Caption1>
-              <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={spoIrAc} />
-              <Caption1 style={{ marginLeft: GRID_LEFT }}>IR, 6th Order Butterworth IIR Lowpass, cutoff freq 0.67Hz (DC)</Caption1>
-              <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={spoIrDc} />
-            </div>
-            <div style={{ width: '50%' }}>
-              <Caption1 style={{ marginLeft: GRID_LEFT }}>RED - Original</Caption1>
-              <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={spoRed} />
-              <Caption1 style={{ marginLeft: GRID_LEFT }}>RED - 170th order FIR Lowpass, cutoff freq 10Hz</Caption1>
-              <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={spoRedFilt} />
-              <Caption1 style={{ marginLeft: GRID_LEFT }}>RED, 4th Order Butterworth IIR Bandpass, cutoff freq 0.67Hz ~ 4.5Hz (AC)</Caption1>
-              <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={spoRedAc} />
-              <Caption1 style={{ marginLeft: GRID_LEFT }}>RED, 6th Order Butterworth IIR Lowpass, cutoff freq 0.67Hz (DC)</Caption1>
-              <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={spoRedDc} />
-            </div>
-          </div>
-
-          <div style={{ width: DISPLAY_WIDTH, marginTop: 27, marginLeft: DISPLAY_MARGIN_LEFT, marginRight: DISPLAY_MARGIN_RIGHT }}>
-            <Spo2Display {...spoOutput} />
-          </div>
-          {/* <div style={{ width: DISPLAY_COLUMN_WIDTH }} /> */}
-        </div>
-        {/* SPO2 Chart End */}
-
-        {/* <Divider style={{ marginTop: 48, marginBottom: 48 }} /> */}
-
-        <h3 style={{ marginLeft: GRID_LEFT, color: 'gray' }}>ROUGU</h3>
-        {/* SPO2 ROUGU Toolbar Begin */}
-        <div style={{ display: 'flex' }}>
-          <div style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'space-around' }}>
-            <div style={{ width: '50%' }}>
-              {/* <Caption1 style={{ marginLeft: GRID_LEFT }}>IR - Original</Caption1>
-              <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={rouguSpoIr} /> */}
-              <Caption1 style={{ marginLeft: GRID_LEFT }}>IR - Filtered</Caption1>
-              <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={rouguSpoIrFilt} />
-            </div>
-            <div style={{ width: '50%' }}>
-              {/* <Caption1 style={{ marginLeft: GRID_LEFT }}>Red - Original</Caption1>
-              <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={rouguSpoRd} /> */}
-              <Caption1 style={{ marginLeft: GRID_LEFT }}>Red - Filtered</Caption1>
-              <ReactECharts style={{ height: spoChartHeight, width: '100%' }} option={rouguSpoRdFilt} />
-            </div>
-          </div>
-          <div style={{ width: DISPLAY_WIDTH, marginTop: 27, marginLeft: DISPLAY_MARGIN_LEFT, marginRight: DISPLAY_MARGIN_RIGHT }}>
-            <Spo2RouguDisplay spo={rouguSpo} hr={rouguHr} />
-          </div>
-          {/* <div style={{ width: DISPLAY_COLUMN_WIDTH }} /> */}
-        </div>
-        {/* SPO2 ROUGU Toolbar End */}
-
-        <Spacer24 />
-
-        {/* SPO2 ROUGU Chart Begin */}
-        {/* SPO2 ROUGU Chart End */}
-
-        <Divider style={{ marginTop: 48, marginBottom: 48 }} />
-
-        <h1 style={{ marginLeft: GRID_LEFT }}>ABP</h1>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginRight: DISPLAY_COLUMN_WIDTH }}>
-          <Toolbar style={{ backgroundColor: tokens.colorNeutralBackground3, borderRadius: 8 }}>
-            <StopWatch
-              onStart={() => {
-                worker.postMessage({ type: 'max86141-abp-recording-start' })
-              }}
-              onStop={() => {
-                worker.postMessage({ type: 'max86141-abp-recording-stop' })
-              }}
-              started={abpRecording}
-              disabled={abpConfigShow}
-            >
-              {abpRecording}
-            </StopWatch>
-            <ToolbarButton onClick={() => shell.openExternal(path.join(process.cwd(), 'log'))} icon={<FolderOpen24Regular />} />
-            <ToolbarDivider />
-            <Popover withArrow>
-              <PopoverTrigger disableButtonEnhancement>
-                <ToolbarButton icon={<ArrowSort24Regular />} >
-                  ORDER
-                </ToolbarButton>
-              </PopoverTrigger>
-              <PopoverSurface>
-                {
-                  abpOrder.map((name, index, arr) => {
-                    return (
-                      <div key={name} style={{ display: 'flex', alignItems: 'center' }}>
-                        <Body1 style={{ flex: 1, minWidth: 0, marginTop: 8, marginBottom: 8, marginRight: 32 }}>{name}</Body1>
-                        <Button icon={<ArrowSortUp24Regular />} disabled={index === 0} appearance="subtle" onClick={() => abpReorder(true, index)} />
-                        <Button icon={<ArrowSortDown24Regular />} disabled={index === arr.length - 1} appearance="subtle" onClick={() => abpReorder(false, index)} />
-                      </div>
-                    )
-                  })
-                }
-              </PopoverSurface>
-            </Popover>
-            <ToolbarDivider />
-            <ToolbarButton icon={<ZoomIn24Regular />} onClick={() => abpZoom(true)} disabled={abpSamplesInChart <= 250} />
-            <Text style={{ width: 48 }} align='center'>{abpSamplesInChart}</Text>
-            <ToolbarButton icon={<ZoomOut24Regular />} onClick={() => abpZoom(false)} disabled={abpSamplesInChart >= 16000} />
-            <ToolbarDivider />
-            <ToolbarButton
-              disabled={abpChartHeight <= CHART_MIN_HEIGHT}
-              icon={<AlignSpaceEvenlyVertical20Regular />}
-              onClick={() => {
-                setAbpChartHeight(abpChartHeight - CHART_STEP_HEIGHT)
-              }} />
-            <ToolbarButton
-              disabled={abpChartHeight >= CHART_MAX_HEIGHT}
-              icon={<AlignSpaceFitVertical20Regular />}
-              onClick={() => {
-                setAbpChartHeight(abpChartHeight + CHART_STEP_HEIGHT)
-              }} />
-            <ToolbarDivider />
-            <ToggleButton
-              checked={abpConfigShow}
-              appearance='transparent'
-              icon={abpConfigShow ? <Settings24Filled /> : <Settings24Regular />}
-              onClick={() => {
-                setAbpConfigShow(!abpConfigShow)
-                setAbpConfigPanelHeight(!abpConfigShow ? 900 : 0)
-              }}
-              // disabled={abpRecording}
-              disabled={true}
-            >
-              SHOW
-            </ToggleButton>
-            <ToggleButton
-              checked={!!abpConfigEdit.length}
-              appearance='transparent'
-              icon={abpConfigEdit.length ? <Edit24Filled /> : <Edit24Regular />}
-              onClick={() => {
-                // setAbpConfigEdit(!abpConfigShow)
-              }}
-              // disabled={abpRecording}
-              disabled={true}
-            >
-              EDIT
-            </ToggleButton>
-          </Toolbar>
-        </div>
-
-        <AnimateHeight
-          duration={250}
-          height={abpConfigPanelHeight}
-          style={{
-            marginTop: 8,
-            marginLeft: GRID_LEFT,
-            marginRight: DISPLAY_COLUMN_WIDTH,
-            backgroundColor: tokens.colorNeutralBackground1,
-            borderRadius: tokens.borderRadiusMedium,
-            display: 'flex',
-            flexDirection: 'column'
-          }}
-        >
-          <Max86141ConfigPanel />
-        </AnimateHeight>
-
-        <Spacer24 />
-
-        <div style={{ display: 'flex' }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div key="ABP_PPG1_LEDC1" style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
-              <Caption1 style={{ marginLeft: GRID_LEFT }}>PPG1_LEDC1</Caption1>
-              <ReactECharts style={{ height: abpChartHeight }} option={{
-                ...abpOrigs.PPG1_LEDC1,
-                xAxis: {
-                  max: abpSamplesInChart,
-                  splitNumber: abpSamplesInChart / 50 + 1,
-                  type: 'value',
-                  min: 0,
-                  // max: ABP_DEFAULT_SAMPLES_IN_CHART,
-                  // splitNumber: ABP_DEFAULT_SAMPLES_IN_CHART / 50 + 1,
-                  axisLabel: { show: false },
-                  axisTick: { show: false },
-                  axisLine: { show: false },
-                  animation: false
-                }
-              }} />
-            </div>
-            <div key="ABP_PPG2_LEDC1" style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
-              <Caption1 style={{ marginLeft: GRID_LEFT }}>PPG2_LEDC1</Caption1>
-              <ReactECharts style={{ height: abpChartHeight }} option={{
-                ...abpOrigs.PPG2_LEDC1,
-                xAxis: {
-                  max: abpSamplesInChart,
-                  splitNumber: abpSamplesInChart / 50 + 1,
-                  type: 'value',
-                  min: 0,
-                  // max: ABP_DEFAULT_SAMPLES_IN_CHART,
-                  // splitNumber: ABP_DEFAULT_SAMPLES_IN_CHART / 50 + 1,
-                  axisLabel: { show: false },
-                  axisTick: { show: false },
-                  axisLine: { show: false },
-                  animation: false
-                }
-              }} />
-            </div>            
-            {/*
-              abpOrder.map(name => (
-                  <div key={name} style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
-                    <Caption1 style={{ marginLeft: GRID_LEFT }}>{name}</Caption1>
-                    <ReactECharts style={{ height: abpChartHeight }} option={{
-                      ...abpOrigs[name],
-                      xAxis: {
-                        max: abpSamplesInChart,
-                        splitNumber: abpSamplesInChart / 50 + 1,
-                        type: 'value',
-                        min: 0,
-                        // max: ABP_DEFAULT_SAMPLES_IN_CHART,
-                        // splitNumber: ABP_DEFAULT_SAMPLES_IN_CHART / 50 + 1,
-                        axisLabel: { show: false },
-                        axisTick: { show: false },
-                        axisLine: { show: false },
-                        animation: false
-                      }
-                    }} />
-                  </div>
-              ))
-            */}
-            {/*
-            <div key='abp-original-all' style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
-              <Caption1 style={{ marginLeft: GRID_LEFT }}>ABP (original)</Caption1>
-              <ReactECharts style={{ height: abpChartHeight }} option={Object.assign({}, initAbpOption, {
-                xAxis: {
-                  max: abpSamplesInChart,
-                  splitNumber: abpSamplesInChart / 50 + 1,
-                  type: 'value',
-                  min: 0,
-                  // max: ABP_DEFAULT_SAMPLES_IN_CHART,
-                  // splitNumber: ABP_DEFAULT_SAMPLES_IN_CHART / 50 + 1,
-                  axisLabel: { show: false },
-                  axisTick: { show: false },
-                  axisLine: { show: false },
-                  animation: false
-                },
-
-                series: Object.keys(abpOrigs).map(key => {
-                  return { ...abpOrigs[key].series[0], name: key }
-                }, [])
-              })} />
-            </div> */}
-          </div>
-          <div style={{ width: DISPLAY_COLUMN_WIDTH }} />
-        </div>
-
-        <Divider style={{ marginTop: 48, marginBottom: 48 }} />
-
-        <h1 style={{ marginLeft: GRID_LEFT }}>BODY TEMPERATURES</h1>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginRight: DISPLAY_COLUMN_WIDTH }}>
-          <Toolbar style={{ backgroundColor: tokens.colorNeutralBackground3, borderRadius: 8 }}>
-            <StopWatch
-              onStart={() => {
-                worker.postMessage({ type: 'm601z-recording-start' })
-              }}
-              onStop={() => {
-                worker.postMessage({ type: 'm601z-recording-stop' })
-              }}
-              started={tempRecording}
-            >
-              {tempRecording}
-            </StopWatch>
-            <ToolbarButton onClick={() => shell.openExternal(path.join(process.cwd(), 'log'))} icon={<FolderOpen24Regular />} />
-            <ToolbarDivider />
-            <ToolbarButton
-              disabled={tempChartHeight <= CHART_MIN_HEIGHT}
-              icon={<AlignSpaceEvenlyVertical20Regular />}
-              onClick={() => {
-                setTempChartHeight(tempChartHeight - CHART_STEP_HEIGHT)
-              }} />
-            <ToolbarButton
-              disabled={tempChartHeight >= CHART_MAX_HEIGHT}
-              icon={<AlignSpaceFitVertical20Regular />}
-              onClick={() => {
-                setTempChartHeight(tempChartHeight + CHART_STEP_HEIGHT)
-              }} />
-          </Toolbar>
-        </div>
-
-        <Spacer24 />
-
-        <div style={{ display: 'flex' }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <ReactECharts
-              style={{ height: tempChartHeight, width: '100%' }}
-              option={tempChartOption}
-            />
-          </div>
-          <div style={{ width: DISPLAY_COLUMN_WIDTH }} />
-        </div>
-
-        <div style={{ height: 240 }} />
-      </div>
-    </div>
-  </IonPage>)
+    </IonPage>)
 }
 
 export default MagusView

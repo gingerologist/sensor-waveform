@@ -60,7 +60,7 @@ class Transform {
     this.samplingRate = samplingRate
     this.reset(samplesInChart)
 
-    console.log("new Trans", name, samplingRate, samplesInChart)
+    // console.log('new Trans', name, samplingRate, samplesInChart)
   }
 
   reset (samplesInChart) {
@@ -198,7 +198,7 @@ class Max86141ViewData {
   reset (samplesInChart, clearAhead) {
     this.samplesInChart = samplesInChart
     this.clearAhead = clearAhead
-    this.transforms.forEach(trans => trans.reset(samplesInChart))
+    this.transforms?.forEach(trans => trans.reset(samplesInChart))
     this.regbuf = Buffer.alloc(0)
   }
 
@@ -290,7 +290,7 @@ class Max86141ViewData {
   //   return viewdata
   // }
   build (parsed) {
-    const { brief, samples, reg10, reg20, rougu } = parsed
+    const { brief, samples, reg10, reg20, rougu, feature } = parsed
 
     // console.log(`samplingRate: ${brief.samplingRate}`)
     // create transforms by data tags
@@ -337,8 +337,8 @@ class Max86141ViewData {
 
         // assume 30 pairs
         if (rougu.length === 1200) {
-          const ir = []
-          const rd = []
+          // const ir = []
+          // const rd = []
           const irdc = []
           const rddc = []
           const irFilt = []
@@ -356,7 +356,7 @@ class Max86141ViewData {
             hr.push(rougu.readInt32LE(i * 24 + 20))
           }
 
-          viewData.rougu = { ir, rd, irdc, rddc, irFilt, rdFilt, spo, hr }
+          viewData.rougu = { ir: viewData.filed[0], rd: viewData.filed[1], irdc, rddc, irFilt, rdFilt, spo, hr }
         } else {
           console.log(`warning: rougu data length: ${rougu.length}, not 960`, rougu)
         }
@@ -368,7 +368,9 @@ class Max86141ViewData {
     //   Object.prototype.hasOwnProperty.call(brief, 'ppg2')) {
     //   const val = brief.ppg2 === 0 ?  :
     // }
-
+    if (feature) {
+      viewData.feature = feature
+    }
     return viewData
   }
 }
