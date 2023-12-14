@@ -71,7 +71,7 @@ const MagusEcg = ({ worker }) => {
   const [ecgNtch, setEcgNtch] = useState(ecgOptBase)
   const [ecgNlhp, setEcgNlhp] = useState(ecgOptBase)
 
-  console.log(worker)
+  // console.log(worker)
 
   useEffect(() => {
     worker.onmessage = e => {

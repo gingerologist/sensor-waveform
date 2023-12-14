@@ -53,6 +53,7 @@
   "dependencies": {
     "@fluentui/react-components": "^9.27.4",
     "@ionic/react": "^7.6.0",
+    "@ionic/react-router": "^7.6.0",
     "echarts": "^5.4.3",
     "echarts-for-react": "^3.0.2",
     "electron-squirrel-startup": "^1.0.0",
