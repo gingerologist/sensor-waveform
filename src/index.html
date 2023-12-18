@@ -14,8 +14,19 @@
                  worker-src 'self' 'unsafe-eval' 'unsafe-inline' blob:" >
     <!-- <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'self' 'unsafe eval' 'unsafe-inline' blob:"> -->
     <!-- <meta http-equiv="Content-Security-Policy" content='*''> -->
-    <!-- <base href="/">  -->
+    <style>
+      .abp-setting-popover {
+        --width: 800px;
+        --offset-y: 20px;
+      }
+
+      .abp-setting-modal {
+        --width: 500px;
+        --height: 540px;
+      }
+    </style>
   </head>
+
   <body>
     <!-- <button type="button" id="btn">Open a File</button>
     File path: <strong id="filePath"></strong> -->

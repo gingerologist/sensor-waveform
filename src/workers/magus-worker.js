@@ -85,6 +85,8 @@ const startAsync = async () => {
   await port.open({ baudRate: 115200 })
   console.log('port opened', port.getInfo())
 
+  const writer = port.writable.getWriter()
+
   const ads129xViewData = createAds129xViewData({
     samplesInChart: 2000,
     clearAhead: 200,
@@ -144,7 +146,7 @@ const startAsync = async () => {
   ])
 
   const max86141SpoHeadline = makeHeadline(['PPG1-LEDC1', 'PPG1_LEDC2'])
-  const max86141AbpHeadline = makeHeadline(['PPG1-LEDC1', 'PPG2-LEDC1', 'feat_ptt', 'feat_idc', 'feat_imax', 'feat_imin'])
+  const max86141AbpHeadline = makeHeadline(['PPG1-LEDC1', 'PPG2-LEDC1', 'feat_ptt', 'feat_idc', 'feat_imax', 'feat_imin', 'sbp', 'dbp'])
   const max86141SpoRouguHeadline = makeHeadline(['IR', 'IR Filtered', 'Red', 'Red Filtered', 'SpO2', 'Heart Rate'])
 
   let m601zHeadlineNames = []
@@ -277,6 +279,53 @@ const startAsync = async () => {
       case 'm601z-recording-stop':
         stopM601zLogging()
         break
+      case 'get-abp-coeff': {
+        const preamble = new Uint8Array([0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0xd5])
+        const type = new Uint8Array([0x02, 0x00])
+        const length = new Uint8Array([0x00, 0x00])
+        const tlv = new Uint8Array([...type, ...length])
+        let cka = 0; let ckb = 0
+        for (let i = 0; i < tlv.length; i++) {
+          cka += tlv[i]
+          cka &= 0xff
+          ckb += cka
+          ckb &= 0xff
+        }
+
+        const pkt = new Uint8Array([...preamble, ...tlv, cka, ckb])
+        writer.write(pkt)
+          .then(() => {})
+          .catch(e => {})
+        break
+      }
+      case 'set-abp-coeff': {
+        const data = new Float32Array([...message.data])
+        // console.log(data.byteLength) -> 32
+        const buffer = new ArrayBuffer(data.byteLength)
+        const floatView = new Float32Array(buffer)
+        floatView.set(data)
+        const value = new Uint8Array(buffer)
+
+        const preamble = new Uint8Array([0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0xd5])
+        const type = new Uint8Array([0x03, 0x00])
+        const length = new Uint8Array([0x20, 0x00])
+        const tlv = new Uint8Array([...type, ...length, ...value])
+        let cka = 0; let ckb = 0
+        for (let i = 0; i < tlv.length; i++) {
+          cka += tlv[i]
+          cka &= 0xff
+          ckb += cka
+          ckb &= 0xff
+        }
+
+        const pkt = new Uint8Array([...preamble, ...tlv, cka, ckb])
+        writer.write(pkt)
+          .then(() => {})
+          .catch(e => {})
+
+        break
+      }
+
       default:
         break
     }
@@ -378,17 +427,23 @@ const startAsync = async () => {
                   console.log(`logfile ${filename2}`)
                 }
               } else if (parsed.brief.instanceId === 1) { // ABP
-                assert.equal(parsed.brief.samplingRate, 2048, 'abp sampling rate not 2048')
-                spoMax86141ViewData.reset(VIEW_ABP_SAMPLES_IN_CHART, VIEW_ABP_CLEAR_AHEAD)
+                const { brief, coeff } = parsed
 
-                if (abpAutoRecording) {
-                  const filename = `abpdata-${timestamp()}.csv`
-                  const filepath = path.join(process.cwd(), 'log', filename)
-                  max86141AbpLog = fs.createWriteStream(filepath)
-                  max86141AbpLog.write(max86141AbpHeadline)
+                if (!coeff) {
+                  assert.equal(parsed.brief.samplingRate, 2048, 'abp sampling rate not 2048')
+                  abpMax86141ViewData.reset(VIEW_ABP_SAMPLES_IN_CHART, VIEW_ABP_CLEAR_AHEAD)
 
-                  console.log(`logfile ${filename}`)
+                  if (abpAutoRecording) {
+                    const filename = `abpdata-${timestamp()}.csv`
+                    const filepath = path.join(process.cwd(), 'log', filename)
+                    max86141AbpLog = fs.createWriteStream(filepath)
+                    max86141AbpLog.write(max86141AbpHeadline)
+
+                    console.log(`logfile ${filename}`)
+                  }
                 }
+
+                self.postMessage({ brief, coeff })
               }
             } else if (parsed.brief.instanceId === 0) { // spo
               const viewData = spoMax86141ViewData.build(parsed)
@@ -424,32 +479,13 @@ const startAsync = async () => {
             } else if (parsed.brief.instanceId === 1) { // abp
               const viewData = abpMax86141ViewData.build(parsed)
               const { brief, filed, origs, filts, acs, tags, feature } = viewData
-              self.postMessage({ brief, origs, filts, acs, tags },
+              self.postMessage({ brief, origs, filts, acs, tags, feature },
                 [...origs.map(x => x.buffer), ...filts.map(x => x.buffer), ...acs.map(x => x.buffer)])
 
               if (max86141AbpLog) {
-                // if (max86141AbpCount === 0) {
-                //   max86141AbpStartUs = Date.now() * 1000
-                //   const headline = ['timestamp', ...tags].join(', ') + '\r\n'
-                //   max86141AbpLog.write(headline)
-                // }
-
-                // const rows = filed[0].length
-                // const intervalUs = 1000 * 1000 / readSamplingRate(parsed.reg10[2])
-                // const base = max86141AbpStartUs + max86141AbpCount * rows * intervalUs
-
-                // for (let row = 0; row < rows; row++) {
-                //   const timestamp = Math.round(base + row * intervalUs)
-                //   const list = filed.reduce((list, col) => [...list, col[row]], [])
-                //   const line = timestamp.toString() + ', ' + list.join(', ') + '\r\n'
-                //   max86141AbpLog.write(line)
-                // }
-
-                // max86141AbpCount++
-
                 for (let i = 0; i < filed[0].length; i++) {
                   if (feature && feature.index === i) {
-                    max86141AbpLog.write(`${filed[0][i]}, ${filed[1][i]}, ${feature.ptt}, ${feature.idc}, ${feature.imax}, ${feature.imin}\r\n`)
+                    max86141AbpLog.write(`${filed[0][i]}, ${filed[1][i]}, ${feature.ptt}, ${feature.idc}, ${feature.imax}, ${feature.imin}, ${feature.sbp}, ${feature.dbp}\r\n`)
                   } else {
                     max86141AbpLog.write(`${filed[0][i]}, ${filed[1][i]}\r\n`)
                   }
@@ -519,37 +555,6 @@ const startAsync = async () => {
                   max86141AbpLog.write(`${ir1}, ${ir2}, ${rd1}, ${rd2}\r\n`)
                 }
               }
-
-              /*
-              const { samples } = parsed
-              for (let i = 0; i < samples.length / 4; i++) {
-                if (samples[i * 4].tag !== 1 || samples[i * 4 + 1].tag !== 7 || samples[i * 4 + 2].tag !== 2 || samples[i * 4 + 3].tag !== 8) {
-                  console.log('bad samples', i, samples)
-                  break
-                }
-              }
-
-              const viewData = comboMax86141ViewData.build(parsed)
-
-              const { brief, filed, origs, filts, acs, dcs, acRms, dcAvg, ratio } = viewData
-              self.postMessage({ brief, origs, filts, acs, dcs, acRms, dcAvg, ratio },
-                [...origs.map(x => x.buffer), ...filts.map(x => x.buffer), ...acs.map(x => x.buffer), ...dcs.map(x => x.buffer)])
-
-              if (max86141SpoLog) {
-                if (parsed.samples[0].tag === 1) {
-                  for (let i = 0; i < samples.length / 4; i++) {
-                    const ir1 = samples[i * 4 + 0].val
-                    const ir2 = samples[i * 4 + 1].val
-                    const rd1 = samples[i * 4 + 2].val
-                    const rd2 = samples[i * 4 + 3].val
-
-                    max86141SpoLog.write(`${ir1}, ${ir2}, ${rd1}, ${rd2}\r\n`)
-                  }
-                } else {
-                  console.log('bad data frame, data tags not starting from 1 (PPG1_LEDC1)')
-                  max86141SpoLog.write('bad data frame, data tags not starting from 1 (PPG1_LEDC1)')
-                }
-              } */
             }
             break
           }

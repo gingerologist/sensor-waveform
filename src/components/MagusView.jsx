@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 import {
   Button, Toolbar, ToolbarButton, Caption1, Body1, ToolbarDivider, Divider,
@@ -22,7 +22,22 @@ import { shell } from 'electron'
 
 import path from 'node:path'
 import process from 'node:process'
-import { IonHeader, IonPage, IonTitle, IonToggle, IonToolbar, IonButtons, IonButton, IonText, IonCard, IonCardHeader, IonCardTitle } from '@ionic/react'
+import {
+  IonHeader, IonPage, IonTitle, IonToggle, IonToolbar, IonButtons, IonButton, IonText,
+  IonCard, IonCardHeader, IonCardTitle, IonCardContent, IonCol, IonGrid, IonRow, IonModal, IonContent,
+  IonList, IonItem, IonInput, IonAlert, IonIcon, IonPopover, IonLabel, IonSpinner, IonProgressBar,
+  IonNote,
+  IonListHeader,
+  IonItemGroup,
+  IonItemDivider,
+  IonTextarea
+} from '@ionic/react'
+
+// why do we need this?
+import { OverlayEventDetail } from '@ionic/core/components'
+
+// import { IonIcon } from '@ionic/react';
+import { chevronCollapse, chevronExpand, settingsOutline } from 'ionicons/icons'
 
 const ECG_SAMPLE_COUNT = 2000
 
@@ -269,7 +284,6 @@ const worker = new Worker(new URL('../workers/magus-worker.js', import.meta.url)
 const dummy = new Uint32Array(0)
 
 const MagusView = (props) => {
-
   const [ecgRecording, setEcgRecording] = useState(false)
   const [spoRecording, setSpoRecording] = useState(false)
   const [abpRecording, setAbpRecording] = useState(false)
@@ -307,6 +321,11 @@ const MagusView = (props) => {
   const [rouguHr, setRouguHr] = useState(0)
 
   const [abpOrigs, setAbpOrigs] = useState([dummy, dummy])
+  const [abpFeature, setAbpFeature] = useState(null)
+  const [abpCoeff, setAbpCoeff] = useState(null)
+  const [abpCoeffInputValue, setAbpCoeffInputValue] = useState(null)
+  const abpSettingModal = useRef(null)
+  const abpCoeffInput = useRef(null)
 
   const [tempChartOption, setTempChartOption] = useState(tempChartInitOption)
 
@@ -366,8 +385,19 @@ const MagusView = (props) => {
             setRouguHr(rougu.hr.reduce((sum, v) => sum + v, 0) / rougu.hr.length)
           }
         } else if (brief.instanceId === 1) { // abp
-          const { origs } = e.data
-          setAbpOrigs([origs[0], origs[1]])
+          const { origs, coeff, feature } = e.data
+          if (origs) {
+            setAbpOrigs([origs[0], origs[1]])
+          }
+
+          if (coeff) {
+            setAbpCoeff(coeff)
+          }
+
+          if (feature) {
+            setAbpFeature(feature)
+            // console.log(feature)
+          }
         }
       } else if (brief.sensorId === 2) { // ads129x
         const { leadOff, ecgOrigData, ecgProcData, ecgNtchData, ecgNlhpData } = e.data
@@ -415,6 +445,13 @@ const MagusView = (props) => {
       <IonHeader>
         <IonToolbar mode="ios">
           <IonTitle>IFET WEARABLE</IonTitle>
+          <IonButtons slot="start">
+            <IonButton onClick={() =>
+              worker.postMessage({ type: 'set-abp-coeff', data: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1] })
+            }>
+              Test2
+            </IonButton>
+          </IonButtons>
           <IonButtons slot="end">
             <IonButton onClick={() => shell.openExternal(path.join(process.cwd(), 'log'))}>Open Data Folder</IonButton>
           </IonButtons>
@@ -488,27 +525,6 @@ const MagusView = (props) => {
           {/* SPO2 Toolbar Begin */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginRight: DISPLAY_COLUMN_WIDTH }}>
             <Toolbar style={{ backgroundColor: tokens.colorNeutralBackground3, borderRadius: 8 }}>
-              {/* <StopWatch
-                onStart={() => {
-                  worker.postMessage({ type: 'max86141-spo-recording-start' })
-                }}
-                onStop={() => {
-                  worker.postMessage({ type: 'max86141-spo-recording-stop' })
-                }}
-                started={spoRecording}
-              >
-                {spoRecording}
-              </StopWatch> */}
-              {/* <Switch label="AUTO RECORDING" checked={spoRecording} onChange={(ev, data) => {
-                if (data.checked) {
-                  worker.postMessage({ type: 'max86141-spo-recording-start' })
-                } else {
-                  worker.postMessage({ type: 'max86141-spo-recording-stop' })
-                }
-              }}/> */}
-              {/* <ToolbarDivider /> */}
-              {/* <ToolbarButton onClick={() => shell.openExternal(path.join(process.cwd(), 'log'))} icon={<FolderOpen24Regular />} />
-              <ToolbarDivider /> */}
               <ToolbarButton
                 disabled={spoChartHeight <= CHART_MIN_HEIGHT}
                 icon={<AlignSpaceEvenlyVertical20Regular />}
@@ -592,33 +608,163 @@ const MagusView = (props) => {
 
           <Divider style={{ marginTop: 48, marginBottom: 48 }} />
 
-          <h1 style={{ marginLeft: GRID_LEFT }}>ABP</h1>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginRight: DISPLAY_COLUMN_WIDTH }}>
-            <Toolbar style={{ backgroundColor: tokens.colorNeutralBackground3, borderRadius: 8 }}>
-              {/* <Switch label="AUTO RECORDING" checked={abpRecording} onChange={(ev, data) => {
-                if (data.checked) {
-                  worker.postMessage({ type: 'max86141-abp-recording-start' })
-                } else {
-                  worker.postMessage({ type: 'max86141-abp-recording-stop' })
-                }
-              }}/> */}
-              {/* <ToolbarDivider /> */}
-              {/* <ToolbarButton onClick={() => shell.openExternal(path.join(process.cwd(), 'log'))} icon={<FolderOpen24Regular />} />
-              <ToolbarDivider /> */}
-              <ToolbarButton
-                disabled={abpChartHeight <= CHART_MIN_HEIGHT}
-                icon={<AlignSpaceEvenlyVertical20Regular />}
-                onClick={() => {
-                  setAbpChartHeight(abpChartHeight - CHART_STEP_HEIGHT)
-                }} />
-              <ToolbarButton
-                disabled={abpChartHeight >= CHART_MAX_HEIGHT}
-                icon={<AlignSpaceFitVertical20Regular />}
-                onClick={() => {
-                  setAbpChartHeight(abpChartHeight + CHART_STEP_HEIGHT)
-                }} />
-            </Toolbar>
+          <div style={{ marginLeft: GRID_LEFT, marginRight: GRID_RIGHT + DISPLAY_COLUMN_WIDTH, zIndex: 0 }}>
+            <IonToolbar mode="ios" color="light">
+              <IonTitle>ABP</IonTitle>
+              <IonButtons slot="end">
+                <IonButton
+                  disabled={abpChartHeight <= CHART_MIN_HEIGHT}
+                  onClick={() => setAbpChartHeight(abpChartHeight - CHART_STEP_HEIGHT)}
+                >
+                  <IonIcon icon={chevronCollapse} />
+                </IonButton>
+                <IonButton
+                  disabled={abpChartHeight >= CHART_MAX_HEIGHT}
+                  onClick={() => setAbpChartHeight(abpChartHeight + CHART_STEP_HEIGHT)}
+                >
+                  <IonIcon icon={chevronExpand} />
+                </IonButton>
+                <IonButton
+                  id="trigger-coeff-popover"
+                  onClick={() => worker.postMessage({ type: 'get-abp-coeff' })}
+                >
+                  <IonIcon icon={settingsOutline} />
+                </IonButton>
+              </IonButtons>
+            </IonToolbar>
+            {/* <IonProgressBar value={0.5} /> */}
           </div>
+
+          <IonModal ref={abpSettingModal} trigger="trigger-coeff-popover" class="abp-setting-modal" >
+            <IonContent className="ion-padding">
+              <IonListHeader>Coefficients</IonListHeader>
+              <IonList>
+                <IonItem>
+                  <IonTextarea label="SBP" readonly rows={4} placeholder={abpCoeff ? `${abpCoeff.sbp[0]}\n${abpCoeff.sbp[1]}\n${abpCoeff.sbp[2]}\n${abpCoeff.sbp[3]}` : ''}></IonTextarea>
+                </IonItem>
+                <IonItem>
+                  <IonTextarea label="DBP" readonly rows={4} placeholder={abpCoeff ? `${abpCoeff.dbp[0]}\n${abpCoeff.dbp[1]}\n${abpCoeff.dbp[2]}\n${abpCoeff.dbp[3]}` : ''}></IonTextarea>
+                </IonItem>
+              </IonList>
+              <IonTextarea
+                ref={abpCoeffInput}
+                style={{ width: 500 - 2 * 16, margin: 16 }} rows={8} fill="outline" placeholder="enter 8 decimals, one per line"
+                onIonInput={ev => {
+                  const text = ev.detail.value.trim()
+                  const items = text.split('\n')
+                  if (items.length !== 8) {
+                    setAbpCoeffInputValue(null)
+                    return
+                  }
+
+                  const nums = items.map(item => parseFloat(item))
+                  if (nums.some(num => isNaN(num))) {
+                    setAbpCoeffInputValue(null)
+                    return
+                  }
+
+                  setAbpCoeffInputValue(nums)
+                }}
+              >
+              </IonTextarea>
+              <IonButton style={{ margin: 16 }} disabled={!abpCoeffInputValue} onClick={() => {
+                worker.postMessage({ type: 'set-abp-coeff', data: abpCoeffInputValue })
+                setAbpCoeffInputValue(null)
+                worker.postMessage({ type: 'get-abp-coeff' })
+              }}>update</IonButton>
+            </IonContent>
+          </IonModal>
+
+          {/* <IonPopover
+            class="abp-setting-popover"
+            alignment='end'
+            trigger="trigger-coeff-popover"
+          >
+            <IonContent>
+              <IonList>
+                <IonItemGroup>
+                  <IonItemDivider color="light">
+                    <IonLabel>Coefficients</IonLabel>
+                  </IonItemDivider>
+                  <IonItem>
+                  <IonInput
+                    label="SBP"
+                    placeholder={abpCoeff ? abpCoeff.sbp.join() : 'retrieving...'}
+                    readonly
+                  />
+                  </IonItem>
+                  <IonItem>
+                    <IonInput
+                      label="DBP"
+                      placeholder={abpCoeff ? abpCoeff.dbp.join() : 'retrieving...'}
+                      readonly
+                    />
+                  </IonItem>
+                  <IonItemDivider color="light">
+                    <IonLabel>Set New Values</IonLabel>
+                  </IonItemDivider>
+                  <IonItem>
+                    <IonTextarea
+                      placeholder="type 8 comma-separated decimals and click submit button"
+                    >
+                    </IonTextarea>
+                    <IonButton slot="end">submit</IonButton>
+                  </IonItem>
+                </IonItemGroup>
+              </IonList>
+            </IonContent>
+          </IonPopover> */}
+
+          {/* <IonCard style={{ marginLeft: GRID_LEFT, width: 640 }} mode="md">
+            <IonCardHeader>
+              <IonCardTitle>coefficients</IonCardTitle>
+            </IonCardHeader>
+            <IonCardContent>
+              <IonList>
+                <IonItem style={{ fontFamily: 'monospace' }}>{`sbp (hi pressure) : ${abpCoeff ? abpCoeff.sbp.join(',') : ''}`}</IonItem>
+                <IonItem style={{ fontFamily: 'monospace' }}>{`dbp (lo pressure) : ${abpCoeff ? abpCoeff.dbp.join(',') : ''}`}</IonItem>
+              </IonList>
+            </IonCardContent>
+            <IonButton
+              id="trigger-set-abp-coeff"
+              fill="clear"
+              disabled={!abpCoeff}
+            >
+              set new values
+            </IonButton>
+          </IonCard> */}
+
+          <Spacer24 />
+
+          {/* <IonAlert
+            trigger="edit-coeff"
+            header="set new coefficient values"
+            inputs={[
+              { type: 'number', step: 'any', id: 'sbp0', placeholder: 'sbp coeff 1', value: abpCoeff?.sbp[0], handler: function (val) { console.log(val); console.log('this.val', this.val) } },
+              { type: 'number', step: 'any', id: 'sbp1', placeholder: 'sbp coeff 2', value: abpCoeff?.sbp[1] },
+              { type: 'number', step: 'any', id: 'sbp2', placeholder: 'sbp coeff 3', value: abpCoeff?.sbp[2] },
+              { type: 'number', step: 'any', id: 'sbp3', placeholder: 'sbp coeff 4', value: abpCoeff?.sbp[3] },
+              { type: 'number', step: 'any', placeholder: 'dbp coeff 1', value: abpCoeff?.dbp[0] },
+              { type: 'number', step: 'any', placeholder: 'dbp coeff 2', value: abpCoeff?.dbp[1] },
+              { type: 'number', step: 'any', placeholder: 'dbp coeff 3', value: abpCoeff?.dbp[2] },
+              { type: 'number', step: 'any', placeholder: 'dbp coeff 4', value: abpCoeff?.dbp[3] }
+            ]}
+            buttons={[{
+              text: 'Cancel',
+              role: 'cancel'
+            }, {
+              text: 'Ok',
+              handler: (data, data2) => {
+                console.log(data)
+                worker.postMessage({
+                  type: 'set-abp-coeff',
+                  data: [data['0'], data['1'], data['2'], data['3'], data[4], data[5], data[6], data[7]]
+                })
+              }
+            }]}
+          /> */}
+
+          <h2 style={{ marginLeft: GRID_LEFT }}>SBP: {abpFeature?.sbp.toFixed(2)}, DBP: {abpFeature?.dbp.toFixed(2)}</h2>
 
           <Spacer24 />
 
@@ -629,7 +775,7 @@ const MagusView = (props) => {
                 <ReactECharts style={{ height: abpChartHeight }} option={buildAbpOption(abpOrigs[0])} />
               </div>
               <div key="ABP_PPG2_LEDC1" style={{ flex: 1, flexBasis: 0, minWidth: 0 }}>
-                <Caption1 style={{ marginLeft: GRID_LEFT }}>PPG1_LEDC1</Caption1>
+                <Caption1 style={{ marginLeft: GRID_LEFT }}>PPG2_LEDC1</Caption1>
                 <ReactECharts style={{ height: abpChartHeight }} option={buildAbpOption(abpOrigs[1])} />
               </div>
 
