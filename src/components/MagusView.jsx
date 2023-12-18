@@ -446,9 +446,9 @@ const MagusView = (props) => {
         <IonToolbar mode="ios">
           <IonTitle>IFET WEARABLE</IonTitle>
           <IonButtons slot="start">
-            <IonButton onClick={() =>
+            <IonButton onClick={() => {
               // worker.postMessage({ type: 'set-abp-coeff', data: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1] })
-            }>
+            }}>
               Test
             </IonButton>
           </IonButtons>
