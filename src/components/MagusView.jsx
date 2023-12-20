@@ -640,19 +640,19 @@ const MagusView = (props) => {
               <IonListHeader>Coefficients</IonListHeader>
               <IonList>
                 <IonItem>
-                  <IonTextarea label="SBP" readonly rows={4} placeholder={abpCoeff ? `${abpCoeff.sbp[0]}\n${abpCoeff.sbp[1]}\n${abpCoeff.sbp[2]}\n${abpCoeff.sbp[3]}` : ''}></IonTextarea>
+                  <IonTextarea label="SBP" readonly rows={4} placeholder={abpCoeff ? `${abpCoeff.sbp[0]}\n${abpCoeff.sbp[1]}` : ''}></IonTextarea>
                 </IonItem>
                 <IonItem>
-                  <IonTextarea label="DBP" readonly rows={4} placeholder={abpCoeff ? `${abpCoeff.dbp[0]}\n${abpCoeff.dbp[1]}\n${abpCoeff.dbp[2]}\n${abpCoeff.dbp[3]}` : ''}></IonTextarea>
+                  <IonTextarea label="DBP" readonly rows={4} placeholder={abpCoeff ? `${abpCoeff.dbp[0]}\n${abpCoeff.dbp[1]}` : ''}></IonTextarea>
                 </IonItem>
               </IonList>
               <IonTextarea
                 ref={abpCoeffInput}
-                style={{ width: 500 - 2 * 16, margin: 16 }} rows={8} fill="outline" placeholder="enter 8 decimals, one per line"
+                style={{ width: 500 - 2 * 16, margin: 16 }} rows={4} fill="outline" placeholder="enter 8 decimals, one per line"
                 onIonInput={ev => {
                   const text = ev.detail.value.trim()
                   const items = text.split('\n')
-                  if (items.length !== 8) {
+                  if (items.length !== 4) {
                     setAbpCoeffInputValue(null)
                     return
                   }

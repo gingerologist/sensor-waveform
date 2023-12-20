@@ -299,16 +299,18 @@ const startAsync = async () => {
         break
       }
       case 'set-abp-coeff': {
+        console.log('set-abp-coeff', message.data)
         const data = new Float32Array([...message.data])
         // console.log(data.byteLength) -> 32
         const buffer = new ArrayBuffer(data.byteLength)
         const floatView = new Float32Array(buffer)
         floatView.set(data)
+        console.log('floatview', floatView)
         const value = new Uint8Array(buffer)
 
         const preamble = new Uint8Array([0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0xd5])
         const type = new Uint8Array([0x03, 0x00])
-        const length = new Uint8Array([0x20, 0x00])
+        const length = new Uint8Array([0x10, 0x00])
         const tlv = new Uint8Array([...type, ...length, ...value])
         let cka = 0; let ckb = 0
         for (let i = 0; i < tlv.length; i++) {

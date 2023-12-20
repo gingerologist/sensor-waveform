@@ -222,8 +222,8 @@ const parseDetail = (data, tlv) => {
 
     case 0xe7: {
       const coeff = {
-        sbp: [tlv.value.readFloatLE(0), tlv.value.readFloatLE(4), tlv.value.readFloatLE(8), tlv.value.readFloatLE(12)],
-        dbp: [tlv.value.readFloatLE(16), tlv.value.readFloatLE(20), tlv.value.readFloatLE(24), tlv.value.readFloatLE(28)]
+        sbp: [tlv.value.readFloatLE(0), tlv.value.readFloatLE(4)],
+        dbp: [tlv.value.readFloatLE(8), tlv.value.readFloatLE(12)]
       }
       // console.log(coeff)
       data.coeff = coeff
@@ -236,11 +236,11 @@ const parseDetail = (data, tlv) => {
         data.feature = {
           index,
           ptt: tlv.value.readFloatLE(4),
-          idc: tlv.value.readFloatLE(8),
-          imax: tlv.value.readFloatLE(12),
-          imin: tlv.value.readFloatLE(16),
-          sbp: tlv.value.readFloatLE(20),
-          dbp: tlv.value.readFloatLE(24)
+          // idc: tlv.value.readFloatLE(8),
+          // imax: tlv.value.readFloatLE(12),
+          // imin: tlv.value.readFloatLE(16),
+          sbp: tlv.value.readFloatLE(8),
+          dbp: tlv.value.readFloatLE(12)
         }
       }
       break
