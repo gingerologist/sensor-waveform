@@ -764,7 +764,7 @@ const MagusView = (props) => {
             }]}
           /> */}
 
-          <h2 style={{ marginLeft: GRID_LEFT }}>SBP: {abpFeature?.sbp.toFixed(2)}, DBP: {abpFeature?.dbp.toFixed(2)}</h2>
+          <h2 style={{ marginLeft: GRID_LEFT }}>SBP: {abpFeature?.sbp.toFixed(1)}, DBP: {abpFeature?.dbp.toFixed(1)}</h2>
 
           <Spacer24 />
 

@@ -236,9 +236,6 @@ const parseDetail = (data, tlv) => {
         data.feature = {
           index,
           ptt: tlv.value.readFloatLE(4),
-          // idc: tlv.value.readFloatLE(8),
-          // imax: tlv.value.readFloatLE(12),
-          // imin: tlv.value.readFloatLE(16),
           sbp: tlv.value.readFloatLE(8),
           dbp: tlv.value.readFloatLE(12)
         }
@@ -246,7 +243,7 @@ const parseDetail = (data, tlv) => {
       break
     }
 
-    case 0xf5: {
+    case 0xe9: {
       data.rougu = tlv.value
       break
     }
