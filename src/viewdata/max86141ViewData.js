@@ -336,7 +336,7 @@ class Max86141ViewData {
             } max86141_rougu_data_t; */
 
         // assume 30 pairs
-        if (rougu.length === 1200) {
+        if (rougu.length === 1400) {
           // const ir = []
           // const rd = []
           const irdc = []
@@ -345,20 +345,20 @@ class Max86141ViewData {
           const rdFilt = []
           const spo = []
           const hr = []
+          const rHandled = []
           for (let i = 0; i < 50; i++) {
-            // ir.push(rougu.readInt32LE(i * 32 + 0))
-            // rd.push(rougu.readInt32LE(i * 32 + 4))
-            irdc.push(rougu.readInt32LE(i * 24 + 0))
-            rddc.push(rougu.readInt32LE(i * 24 + 4))
-            irFilt.push(rougu.readInt32LE(i * 24 + 8))
-            rdFilt.push(rougu.readInt32LE(i * 24 + 12))
-            spo.push(rougu.readInt32LE(i * 24 + 16))
-            hr.push(rougu.readInt32LE(i * 24 + 20))
+            irdc.push(rougu.readInt32LE(i * 28 + 0))
+            rddc.push(rougu.readInt32LE(i * 28 + 4))
+            irFilt.push(rougu.readInt32LE(i * 28 + 8))
+            rdFilt.push(rougu.readInt32LE(i * 28 + 12))
+            spo.push(rougu.readInt32LE(i * 28 + 16))
+            hr.push(rougu.readInt32LE(i * 28 + 20))
+            rHandled.push(rougu.readFloatLE(i * 28 + 24))
           }
 
-          viewData.rougu = { ir: viewData.filed[0], rd: viewData.filed[1], irdc, rddc, irFilt, rdFilt, spo, hr }
+          viewData.rougu = { ir: viewData.filed[0], rd: viewData.filed[1], irdc, rddc, irFilt, rdFilt, spo, hr, rHandled }
         } else {
-          console.log(`warning: rougu data length: ${rougu.length}, not 960`, rougu)
+          console.log(`warning: rougu data length: ${rougu.length}, not 1400`, rougu)
         }
       }
     }

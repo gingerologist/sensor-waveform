@@ -147,7 +147,7 @@ const startAsync = async () => {
 
   const max86141SpoHeadline = makeHeadline(['PPG1-LEDC1', 'PPG1_LEDC2'])
   const max86141AbpHeadline = makeHeadline(['PPG1-LEDC1', 'PPG2-LEDC1', 'feat_ptt', 'feat_idc', 'feat_imax', 'feat_imin', 'sbp', 'dbp'])
-  const max86141SpoRouguHeadline = makeHeadline(['IR', 'IR Filtered', 'Red', 'Red Filtered', 'SpO2', 'Heart Rate'])
+  const max86141SpoRouguHeadline = makeHeadline(['IR', 'IR Filtered', 'Red', 'Red Filtered', 'SpO2', 'Heart Rate', 'R (rHandled)'])
 
   let m601zHeadlineNames = []
   const m601zHeadline = () => makeHeadline(m601zHeadlineNames)
@@ -475,7 +475,8 @@ const startAsync = async () => {
                   const rdFilt = rougu.rdFilt[i]
                   const spo = rougu.spo[i]
                   const hr = rougu.hr[i]
-                  max86141SpoRouguLog.write(`${ir}, ${irFilt}, ${rd}, ${rdFilt}, ${spo}, ${hr}\r\n`)
+                  const rHandled = rougu.rHandled[i]
+                  max86141SpoRouguLog.write(`${ir}, ${irFilt}, ${rd}, ${rdFilt}, ${spo}, ${hr}, ${rHandled}\r\n`)
                 }
               }
             } else if (parsed.brief.instanceId === 1) { // abp
