@@ -8,14 +8,17 @@ const parseBrief = tlv => {
   const version = tlv.value.readUInt8(3)
   const numOfSamples = tlv.value.readUInt8(4)
   const heartRate = tlv.value.readUInt8(5)
-  const respiratoryRate = tlv.value.readUInt8(6)
+  const respirationRate = tlv.value.readUInt8(6)
+
+  // console.log('respiration rate', respirationRate)
+
   return {
     sensorId,
     instanceId,
     version,
     numOfSamples,
     heartRate,
-    respiratoryRate
+    respirationRate
   }
 }
 

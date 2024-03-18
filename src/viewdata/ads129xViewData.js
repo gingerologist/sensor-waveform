@@ -83,6 +83,9 @@ class Ads129xViewData {
     this.ecgProcArray = Array(this.samplesInChart).fill(0)
     this.ecgNtchArray = Array(this.samplesInChart).fill(0)
     this.ecgNlhpArray = Array(this.samplesInChart).fill(0)
+
+    this.respOrigArray = Array(this.samplesInChart / 10).fill(0)
+    this.respFiltArray = Array(this.samplesInChart / 10).fill(0)
   }
 
   modulo (n) {
@@ -156,7 +159,7 @@ class Ads129xViewData {
    */
   fillOfflineArray (viewdata) {
     const fill = (arrName, sample) => {
-      this[arrName][this.ecgPlotIndex] = sample
+      this[arrName][this.modulo(this.ecgPlotIndex)] = sample
       this[arrName][this.modulo(this.ecgPlotIndex + this.clearAhead)] = NaN
     }
 
@@ -165,7 +168,14 @@ class Ads129xViewData {
       fill('ecgProcArray', viewdata.ecgProc[i])
       fill('ecgNtchArray', viewdata.ecgNtch[i])
       fill('ecgNlhpArray', viewdata.ecgNlhp[i])
-      this.ecgPlotIndex = this.modulo(this.ecgPlotIndex + 1)
+
+      if (i % 10 === 0) {
+        this.respOrigArray[this.modulo(this.ecgPlotIndex) / 10] = viewdata.respOrig[i / 10]
+        this.respOrigArray[this.modulo(this.ecgPlotIndex + this.clearAhead) / 10] = NaN
+        this.respFiltArray[this.modulo(this.ecgPlotIndex) / 10] = viewdata.respFilt[i / 10]
+        this.respFiltArray[this.modulo(this.ecgPlotIndex + this.clearAhead) / 10] = NaN
+      }
+      this.ecgPlotIndex++ //  = this.modulo(this.ecgPlotIndex + 1)
     }
   }
 
@@ -187,7 +197,18 @@ class Ads129xViewData {
       ecgNlhpData[i * 2 + 1] = this.ecgNlhpArray[i]
     }
 
-    Object.assign(viewdata, { ecgOrigData, ecgProcData, ecgNtchData, ecgNlhpData })
+    const len = length / 10
+    const respOrigData = new Float32Array(len * 2)
+    const respFiltData = new Float32Array(len * 2)
+
+    for (let i = 0; i < len; i++) {
+      respOrigData[i * 2] = i
+      respOrigData[i * 2 + 1] = this.respOrigArray[i]
+      respFiltData[i * 2] = i
+      respFiltData[i * 2 + 1] = this.respFiltArray[i]
+    }
+
+    Object.assign(viewdata, { ecgOrigData, ecgProcData, ecgNtchData, ecgNlhpData, respOrigData, respFiltData })
   }
 
   /**
@@ -204,6 +225,26 @@ class Ads129xViewData {
     this.appendFilteredData(viewdata)
     this.fillOfflineArray(viewdata)
     this.appendTypedArray(viewdata)
+
+    // console.log(Object.keys(viewdata))
+    /* [
+    "brief",
+    "leadOff",
+    "ecgOrig",
+    "ecgProc",
+    "respOrig",
+    "respFilt",
+    "ecgNtch",
+    "ecgNlhp",
+    "ecgOrigData",
+    "ecgProcData",
+    "ecgNtchData",
+    "ecgNlhpData"
+    ] */
+
+    // console.log(viewdata.ecgOrig.length, viewdata.respOrig.length, viewdata.respFilt.length)
+    // 50, 5, 5
+
     return viewdata
   }
 }

@@ -369,12 +369,15 @@ const startAsync = async () => {
             const parsed = ads129xParse(parted.tlvs)
             const {
               brief, leadOff, ecgOrig, ecgProc, ecgNtch, ecgNlhp,
-              ecgOrigData, ecgProcData, ecgNtchData, ecgNlhpData
+              ecgOrigData, ecgProcData, ecgNtchData, ecgNlhpData, respOrigData, respFiltData
             } = ads129xViewData.build(parsed)
 
+            // console.log('brief', brief)
+
             self.postMessage({
-              brief, leadOff, ecgOrigData, ecgProcData, ecgNtchData, ecgNlhpData
-            }, [ecgOrigData.buffer, ecgProcData.buffer, ecgNtchData.buffer, ecgNlhpData.buffer
+              brief, leadOff, ecgOrigData, ecgProcData, ecgNtchData, ecgNlhpData, respOrigData, respFiltData
+            }, [
+              ecgOrigData.buffer, ecgProcData.buffer, ecgNtchData.buffer, ecgNlhpData.buffer, respOrigData.buffer, respFiltData.buffer
             ])
 
             if (ads129xLog) {

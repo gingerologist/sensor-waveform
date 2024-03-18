@@ -145,6 +145,43 @@ const ecgOptBase = {
   }]
 }
 
+const respOptBase = {
+  grid: {
+    show: true,
+    left: GRID_LEFT,
+    right: GRID_RIGHT,
+    top: 8,
+    bottom: 16
+  },
+  xAxis: {
+    type: 'value',
+    min: 0,
+    max: ECG_SAMPLE_COUNT / 10,
+    // splitNumber: ECG_SAMPLE_COUNT / 25 + 1,
+    axisLabel: { show: false },
+    axisTick: { show: false },
+    axisLine: { show: false },
+    animation: false
+  },
+  yAxis: {
+    type: 'value',
+    scale: true,
+    axisLabel: { show: false },
+    axisTick: { show: false },
+    axisLine: { show: false },
+    animation: false
+  },
+  series: [{
+    type: 'line',
+    lineStyle: { width: 0.5 },
+    showSymbol: false,
+    dimensions: ['xDim', 'yDim'],
+    encode: { x: 'xDim', y: 'yDim' },
+    data: new Uint32Array(0),
+    animation: false
+  }]
+}
+
 const initSpoOption = {
   grid: {
     show: true,
@@ -290,12 +327,15 @@ const MagusView = (props) => {
   const [tempRecording, setTempRecording] = useState(false)
 
   const [heartRate, setHeartRate] = useState(255)
+  const [respRate, setRespRate] = useState(255)
   const [in2pOff, setIn2pOff] = useState(100)
   const [in2nOff, setIn2nOff] = useState(100)
   const [ecgOrig, setEcgOrig] = useState(ecgOptBase)
   const [ecgProc, setEcgProc] = useState(ecgOptBase)
   const [ecgNtch, setEcgNtch] = useState(ecgOptBase)
   const [ecgNlhp, setEcgNlhp] = useState(ecgOptBase)
+  const [respOrig, setRespOrig] = useState(respOptBase)
+  const [respFilt, setRespFilt] = useState(respOptBase)
 
   const [ecgChartHeight, setEcgChartHeight] = useState(300)
   const [spoChartHeight, setSpoChartHeight] = useState(300)
@@ -400,8 +440,9 @@ const MagusView = (props) => {
           }
         }
       } else if (brief.sensorId === 2) { // ads129x
-        const { leadOff, ecgOrigData, ecgProcData, ecgNtchData, ecgNlhpData } = e.data
+        const { leadOff, ecgOrigData, ecgProcData, ecgNtchData, ecgNlhpData, respOrigData, respFiltData } = e.data
         setHeartRate(brief.heartRate)
+        setRespRate(brief.respirationRate)
         setIn2pOff(leadOff.in2pOff * 2)
         setIn2nOff(leadOff.in2nOff * 2)
 
@@ -409,6 +450,9 @@ const MagusView = (props) => {
         setEcgProc(makeChartOpt(ecgOptBase, ecgProcData))
         setEcgNtch(makeChartOpt(ecgOptBase, ecgNtchData))
         setEcgNlhp(makeChartOpt(ecgOptBase, ecgNlhpData))
+
+        setRespOrig(makeChartOpt(respOptBase, respOrigData))
+        setRespFilt(makeChartOpt(respOptBase, respFiltData))
       } else if (brief.sensorId === 4) { // m601z
         const { idTemps, count } = e.data
 
@@ -517,6 +561,25 @@ const MagusView = (props) => {
             </div>
           </div>
           {/* ECG Chart End */}
+
+          <Divider style={{ marginTop: 48, marginBottom: 48 }} />
+
+          <h1 style={{ marginLeft: GRID_LEFT, marginTop: 48 }}>RESP</h1>
+
+          {/* Resp Chart Begin */}
+          <div style={{ display: 'flex' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <Caption1 style={{ marginLeft: GRID_LEFT }}>Original</Caption1>
+              <ReactECharts style={{ height: 200 }} option={respOrig} />
+              <Caption1 style={{ marginLeft: GRID_LEFT }}>Processed (Zhirou)</Caption1>
+              <ReactECharts style={{ height: 200 }} option={respFilt} />
+            </div>
+            <div style={{ width: DISPLAY_WIDTH, marginTop: 27, marginLeft: DISPLAY_MARGIN_LEFT, marginRight: DISPLAY_MARGIN_RIGHT }}>
+                <div>respiration rate:</div>
+                <div>{`${respRate} breaths/min`}</div>
+            </div>
+          </div>
+          {/* Resp Chart End */}
 
           <Divider style={{ marginTop: 48, marginBottom: 48 }} />
 
